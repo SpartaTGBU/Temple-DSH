@@ -22,7 +22,7 @@ describe('TrajectoryCell memoization', () => {
       spy()
       return (
         <div>
-          <button type="button" onClick={() => force(n => n + 1)}>bump</button>
+          <button type="button" onClick={() => { force(n => n + 1) }}>bump</button>
           <TrajectoryCell t={t} index={1} kind="tool" text="stable" timeSeconds={1} />
         </div>
       )
