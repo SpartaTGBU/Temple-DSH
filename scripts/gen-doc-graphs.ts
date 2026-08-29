@@ -146,7 +146,7 @@ const SERVICE_ROLES: ServiceRole[] = [
     pkg: 'session-residency',
     title: 'Session residency policy',
     mode: 'core',
-    consumers: [],
+    consumers: ['session-residency-cache-release'],
     note: 'Ranks resident sessions with the memory meter under memory pressure and selects idle, closed-turn eviction candidates for a registered executor.',
   },
   {

@@ -419,6 +419,8 @@
       "@deepseek-ai/dsh-session-reference/invariant": ["./packages/context/session-reference/src/invariant.ts"],
       "@deepseek-ai/dsh-session-residency": ["./packages/session/session-residency/src"],
       "@deepseek-ai/dsh-session-residency/invariant": ["./packages/session/session-residency/src/invariant.ts"],
+      "@deepseek-ai/dsh-session-residency-cache-release": ["./packages/session/session-residency-cache-release/src"],
+      "@deepseek-ai/dsh-session-residency-cache-release/invariant": ["./packages/session/session-residency-cache-release/src/invariant.ts"],
       "@deepseek-ai/dsh-session-snapshot": ["./packages/test-support/session-snapshot/src"],
       "@deepseek-ai/dsh-session-snapshot/invariant": ["./packages/test-support/session-snapshot/src/invariant.ts"],
       "@deepseek-ai/dsh-session-stats": ["./packages/session/session-stats/src"],

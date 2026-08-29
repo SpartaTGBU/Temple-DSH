@@ -153,6 +153,7 @@
     { "path": "./packages/typert/loader" },
     { "path": "./packages/session/session-persistence" },
     { "path": "./packages/session/session-residency" },
+    { "path": "./packages/session/session-residency-cache-release" },
     { "path": "./packages/session/session-checkpoint-policy" },
     { "path": "./packages/session/session-log-deepseek" },
     { "path": "./packages/session/session-persistence-jsonl" },

@@ -32,6 +32,7 @@ session 组让 agent（智能体）的对话在实时 loop 之外持久可复用
 | [`session-persistence-jsonl/`](session-persistence-jsonl/README.zh.md) | 随产品交付的后端：每会话一份仅追加 JSONL 日志，可选 Zstandard 压缩 | 注册到 `ctx.sessionPersistence` |
 | [`session-persistence-sqlite/`](session-persistence-sqlite/README.zh.md) | 可选后端：所有会话日志存入一个带物理打包行的 SQLite 数据库 | 注册到 `ctx.sessionPersistence` |
 | [`session-residency/`](session-residency/README.zh.md) | 在内存压力下对常驻会话排序并为可替换执行器选择空闲、已闭合回合的驱逐候选者 | `ctx.sessionResidency` |
+| [`session-residency-cache-release/`](session-residency-cache-release/README.zh.md) | 驻留执行器，在持久日志保持常驻的同时释放被选中会话的易失派生缓存 | 注册到 `ctx.sessionResidency` |
 | [`session-checkpoint-policy/`](session-checkpoint-policy/README.zh.md) | 让模型请求、顶层工具副作用与已完成步骤在下一步动作前持久化 | 包装 `ctx.llm` 与 `ctx.tools` |
 | [`session-log-deepseek/`](session-log-deepseek/README.zh.md) | 把增量规范日志作为可选的官方 DeepSeek 请求元数据上传 | 贡献 `dsh_session_log` |
 

@@ -488,6 +488,19 @@ declare class Session {
    * @returns the derived message, or null when the event produces none.
    */
   deriveEventMessage(event: SessionEvent): Message | null;
+
+  /**
+   * Release this session's volatile derived caches to reclaim heap while the
+   * durable log stays resident. Drops the events snapshot, the derived-message
+   * projection, and the request-context fold; every one rebuilds lazily on its
+   * next accessor from `this.log`, so a released session is observationally
+   * identical and this is safe to call on any live session at any time. It
+   * touches no durable event, no surface, and no store lifecycle. Returns the
+   * approximate number of cached items dropped (snapshot length plus derived
+   * message count), so a caller can account for what a pass reclaimed.
+   * @returns approximate count of dropped cached items.
+   */
+  releaseCaches(): number;
 }
 ```
 
