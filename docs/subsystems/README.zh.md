@@ -10,6 +10,7 @@
 | [llm-streaming.md](llm-streaming.zh.md) | `packages/llm` 的对话类型——`Message`/`ContentBlock`、组装完成的模型请求、`StreamChunk` wire protocol 和适配器约定（adapter contract）、`BlockAssembler`，以及 `LlmAdapter` 提供方约定 |
 | [token-meter.md](token-meter.zh.md) | 不可变的标量与位置回放度量，附带已消费日志修订号 |
 | [memory-pressure.md](memory-pressure.zh.md) | 宿主内存压力检测器：水位分类、`runtime/memory-pressure` 跃迁事件与 `MemoryPressure` 服务 |
+| [session-residency.md](session-residency.zh.md) | 会话驱逐决策策略：内存计量器排序、空闲/打开回合过滤，以及 `ResidencyExecutor` 接缝 |
 | [scope.md](scope.zh.md) | 作用域注册标识、dispatch 载体，以及拥有的 `Scope` 上下文 |
 | [typert.md](typert.zh.md) | 远程调用描述符、lookup/Context 声明、Typert 注册表，以及 Host Gateway/Client API 边界 |
 | [goal.md](goal.zh.md) | 持久 goal 标识、生命周期快照、激活、变更记录与 Round 归属 |

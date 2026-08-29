@@ -7360,6 +7360,25 @@ importers:
         specifier: workspace:^
         version: link:../../storage/storage-json
 
+  packages/session/session-residency:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-memory-meter':
+        specifier: workspace:^
+        version: link:../../util/memory-meter
+      '@deepseek-ai/dsh-memory-pressure':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/memory-pressure
+
   packages/session/session-stats:
     dependencies:
       zod:
