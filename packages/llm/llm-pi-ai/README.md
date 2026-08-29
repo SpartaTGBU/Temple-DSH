@@ -196,7 +196,7 @@ Generated content affects later inputs only after the loop records it. pi-ai fol
 
 #### KV Cache effect
 
-Recorded response content appends to the next request and does not invalidate its earlier reusable prefix. Unrecorded transport metadata and usage accounting do not affect cache identity.
+Recorded response content appends to the next request and does not invalidate its earlier reusable prefix. Unrecorded transport metadata and usage accounting do not affect cache identity. Prompt caching is on by default: a route that sets no `cacheRetention` resolves to `short`, because a tool-use turn reuses one prefix across many round-trips and provider cache reads cost a fraction of fresh input tokens; set `cacheRetention: 'none'` to opt a route out.
 
 ## Known Limitations and Deferred Work
 
