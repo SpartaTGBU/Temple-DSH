@@ -1,6 +1,6 @@
 /** Turn-aware trajectory event ledger with a local record inspector. */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
@@ -1095,7 +1095,7 @@ function RecordListText({
   )
 }
 
-function MarkdownFragment({
+function MarkdownFragmentImpl({
   text,
   rendered,
   preview,
@@ -1120,6 +1120,14 @@ function MarkdownFragment({
     </pre>
   )
 }
+
+// Markdown rendering is the per-row hot path: during streaming the table
+// re-renders on every token, but a row whose text/preview/rendered are
+// unchanged should not re-parse and re-render its markdown. `t` is a stable
+// translate reference from the locale context, so this memo hits across
+// streaming ticks. Mirrors opencode's memoization of expensive list content.
+const MarkdownFragment = memo(MarkdownFragmentImpl)
+MarkdownFragment.displayName = 'MarkdownFragment'
 
 function SourceBlocks({
   blocks,

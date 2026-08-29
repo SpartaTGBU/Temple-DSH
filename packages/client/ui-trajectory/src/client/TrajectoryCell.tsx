@@ -1,5 +1,6 @@
 // Legacy standalone trajectory cell retained for direct consumers and specs.
 
+import { memo } from 'react'
 import {
   formatElapsedSeconds,
   type TrajectoryCellKind,
@@ -41,7 +42,7 @@ const TAG_CLASS: Record<TrajectoryCellKind, string | undefined> = {
  * @param props - index, kind, text, time, and optional Message metrics.
  * @returns the cell element.
  */
-export function TrajectoryCell({
+function TrajectoryCellImpl({
   t,
   index,
   kind,
@@ -93,3 +94,13 @@ export function TrajectoryCell({
     </div>
   )
 }
+
+/**
+ * Memoized standalone trajectory cell for direct consumers and specs. A parent
+ * re-render with unchanged props skips the cell body. `rest` (spread DOM props)
+ * and `t` compare by reference; every other prop is a primitive. The production
+ * table renders rows inline; the streaming hot path there is memoized at
+ * `MarkdownFragment` in TrajectoryTable, where markdown re-parsing is the cost.
+ */
+export const TrajectoryCell = memo(TrajectoryCellImpl)
+TrajectoryCell.displayName = 'TrajectoryCell'
