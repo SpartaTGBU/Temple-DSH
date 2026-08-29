@@ -75,6 +75,17 @@ export const DEFAULT_MAX_TOKENS = 32_768
  */
 export const DEFAULT_INPUT: readonly PiAiModality[] = ['text']
 
+/**
+ * Prompt-cache retention assumed for a route that configures none. Caching is
+ * enabled by default because the economics favor it: for tool-use loops one
+ * turn fans out into many assistant/tool round-trips that all reuse the same
+ * prefix, and provider cache-read pricing is a fraction of a fresh input token,
+ * so a single reuse already wins. Opt out per route with `cacheRetention: 'none'`.
+ * This mirrors the caching-on-by-default stance proven by production agent
+ * harnesses (opencode, LangChain caching middleware).
+ */
+export const DEFAULT_CACHE_RETENTION: CacheRetention = 'short'
+
 export type {
   PiAiCompatProfile,
   PiAiModality,
@@ -180,9 +191,11 @@ export interface PiAiProviderProfile {
 
 /** Validated profile with its route stamped and every adapter-owned default resolved. */
 export interface ResolvedPiAiProviderProfile
-  extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName'> {
+  extends Omit<PiAiProviderProfile, 'apiKeyEnv' | 'retryPolicy' | 'models' | 'displayName' | 'cacheRetention'> {
   /** Harness route key and the `Models` collection key (the configuration dict key). */
   provider: string
+  /** Resolved prompt-cache retention; defaults to {@link DEFAULT_CACHE_RETENTION}. */
+  cacheRetention: CacheRetention
   /** Resolved display name for selectors and configuration surfaces. */
   displayName: string
   /** Validated credential reference, when one is configured. */
@@ -449,6 +462,7 @@ export function resolveProfiles(
       ...rest,
       provider,
       displayName,
+      cacheRetention: source.cacheRetention ?? DEFAULT_CACHE_RETENTION,
       ...apiKeyEnv === undefined ? {} : { apiKeyEnv: credentialRef(apiKeyEnv) },
       streamIdleTimeoutMs,
       maxRequestImageBytes,
