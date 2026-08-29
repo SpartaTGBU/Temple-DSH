@@ -36,7 +36,7 @@ const install: InvariantInstaller = Object.assign((ctx: Context, fail: Invariant
     if (header === undefined) {
       return fail('a loop-built request with no request/header event in its session log')
     }
-    const expected = session.deriveMessages()
+    const expected = session.deriveMessagesShared()
     if (JSON.stringify(options.messages) !== JSON.stringify(expected)) {
       fail(`llm request for session "${String(session.id)}" diverges from the dispatch-time durable derivation (log-reconstruction desync)`)
     }

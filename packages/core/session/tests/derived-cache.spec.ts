@@ -131,3 +131,36 @@ describe('Session.deriveEventMessage — the per-event projection', () => {
     expect(session.deriveEventMessage(empty)).toBeNull()
   })
 })
+
+describe('deriveMessagesShared', () => {
+  it('returns the same content as deriveMessages', () => {
+    const session = Session.create(SessionId('shared-content'))
+    session.append('turn/start', { turn: 1 })
+    userText(session, 'one')
+    userText(session, 'two')
+    expect([...session.deriveMessagesShared()]).toEqual(session.deriveMessages())
+    expect(session.deriveMessagesShared()).toEqual(scratch(session))
+  })
+
+  it('returns a stable reference while the surface is unchanged, avoiding the copy', () => {
+    const session = Session.create(SessionId('shared-stable'))
+    session.append('turn/start', { turn: 1 })
+    userText(session, 'one')
+    const first = session.deriveMessagesShared()
+    const second = session.deriveMessagesShared()
+    expect(second).toBe(first)
+    // deriveMessages still returns a fresh copy each call.
+    expect(session.deriveMessages()).not.toBe(first)
+    expect(session.deriveMessages()).not.toBe(session.deriveMessages())
+  })
+
+  it('extends the shared array as the log grows and rebuilds on a surface replace', () => {
+    const session = Session.create(SessionId('shared-grow'))
+    session.append('turn/start', { turn: 1 })
+    userText(session, 'one')
+    const before = session.deriveMessagesShared().length
+    userText(session, 'two')
+    expect(session.deriveMessagesShared().length).toBe(before + 1)
+    expect([...session.deriveMessagesShared()]).toEqual(scratch(session))
+  })
+})

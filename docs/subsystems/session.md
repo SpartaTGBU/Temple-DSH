@@ -481,6 +481,18 @@ declare class Session {
    * @returns a fresh array of the shared, frozen derived history.
    */
   deriveMessages(): Message[];
+
+  /**
+   * The shared, frozen derived-message array WITHOUT the per-call copy that
+   * {@link deriveMessages} returns. Every `Message` is deep-frozen and the array
+   * itself must be treated as read-only: a caller that only reads (equality
+   * checks, measurement, projection) avoids the O(n) snapshot allocation that
+   * {@link deriveMessages} makes on every call, while a caller that keeps or
+   * mutates the result must use {@link deriveMessages}. The projection is
+   * identical — this is the same cache, exposed without the defensive copy.
+   * @returns the shared frozen derived history; do not mutate or retain-and-append.
+   */
+  deriveMessagesShared(): readonly Message[];
   /**
    * Instance face of the pure per-node `deriveEventMessage` export from
    * `surface.ts`.

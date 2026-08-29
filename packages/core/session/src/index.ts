@@ -722,6 +722,20 @@ export class Session {
    * @returns a fresh array of the shared, frozen derived history.
    */
   deriveMessages(): Message[] {
+    return [...this.deriveMessagesShared()]
+  }
+
+  /**
+   * The shared, frozen derived-message array WITHOUT the per-call copy that
+   * {@link deriveMessages} returns. Every `Message` is deep-frozen and the array
+   * itself must be treated as read-only: a caller that only reads (equality
+   * checks, measurement, projection) avoids the O(n) snapshot allocation that
+   * {@link deriveMessages} makes on every call, while a caller that keeps or
+   * mutates the result must use {@link deriveMessages}. The projection is
+   * identical — this is the same cache, exposed without the defensive copy.
+   * @returns the shared frozen derived history; do not mutate or retain-and-append.
+   */
+  deriveMessagesShared(): readonly Message[] {
     const surface = this.surface
     const nodes = surface.nodes
     const generation = surface.replaceGeneration
@@ -741,7 +755,7 @@ export class Session {
       if (msg) this.derived.push(msg)
     }
     this.derivedNodes = nodes.length
-    return [...this.derived]
+    return this.derived
   }
 
   /**
