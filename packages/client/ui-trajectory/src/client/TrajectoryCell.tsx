@@ -96,11 +96,11 @@ function TrajectoryCellImpl({
 }
 
 /**
- * Memoized trajectory cell. During streaming only the changed cell's props
- * differ, so sibling cells with identical props skip re-rendering entirely.
- * This mirrors opencode's per-item memoization of the conversation list.
- * `rest` (spread DOM props) and `t` are compared by reference; every other
- * prop is a primitive or a stable reference from the record projection.
+ * Memoized standalone trajectory cell for direct consumers and specs. A parent
+ * re-render with unchanged props skips the cell body. `rest` (spread DOM props)
+ * and `t` compare by reference; every other prop is a primitive. The production
+ * table renders rows inline; the streaming hot path there is memoized at
+ * `MarkdownFragment` in TrajectoryTable, where markdown re-parsing is the cost.
  */
 export const TrajectoryCell = memo(TrajectoryCellImpl)
 TrajectoryCell.displayName = 'TrajectoryCell'
