@@ -358,6 +358,8 @@
       "@deepseek-ai/dsh-mcp-client/invariant": ["./packages/mcp/mcp-client/src/invariant.ts"],
       "@deepseek-ai/dsh-memory-meter": ["./packages/util/memory-meter/src"],
       "@deepseek-ai/dsh-memory-meter/invariant": ["./packages/util/memory-meter/src/invariant.ts"],
+      "@deepseek-ai/dsh-memory-pressure": ["./packages/runtime-diagnostics/memory-pressure/src"],
+      "@deepseek-ai/dsh-memory-pressure/invariant": ["./packages/runtime-diagnostics/memory-pressure/src/invariant.ts"],
       "@deepseek-ai/dsh-message-feedback": ["./packages/feedback/message-feedback/src"],
       "@deepseek-ai/dsh-message-feedback/invariant": ["./packages/feedback/message-feedback/src/invariant.ts"],
       "@deepseek-ai/dsh-native-command": ["./packages/util/native-command/src"],

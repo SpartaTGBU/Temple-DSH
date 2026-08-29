@@ -1518,6 +1518,24 @@ export interface ReconnectConfig {
 
 来源：[`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
 
+<a id="deepseek-aidsh-memory-pressure"></a>
+
+## `@deepseek-ai/dsh-memory-pressure`
+
+```ts config-catalog
+/** Watermark and interval configuration for the memory-pressure sampler. */
+export interface MemoryPressureConfig {
+  /** Heap-used bytes at or above which pressure is elevated. Defaults to 1 GiB. */
+  elevatedBytes?: number
+  /** Heap-used bytes at or above which pressure is critical. Defaults to 1.5 GiB. Must exceed elevatedBytes. */
+  criticalBytes?: number
+  /** Sampling interval in milliseconds. Defaults to 5000. */
+  intervalMs?: number
+}
+```
+
+Source: [`packages/runtime-diagnostics/memory-pressure/src/types.ts:17`](../packages/runtime-diagnostics/memory-pressure/src/types.ts)
+
 <a id="deepseek-aidsh-message-feedback"></a>
 
 ## `@deepseek-ai/dsh-message-feedback`
@@ -3534,6 +3552,7 @@ export interface Config {
 - `@deepseek-ai/dsh-launch-environment`（[`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts)）
 - `@deepseek-ai/dsh-llm-mock-server`（[`packages/test-support/llm-mock-server/src/index.ts`](../packages/test-support/llm-mock-server/src/index.ts)）
 - `@deepseek-ai/dsh-loader-smoke`（[`packages/test-support/loader-smoke/src/index.ts`](../packages/test-support/loader-smoke/src/index.ts)）
+- `@deepseek-ai/dsh-memory-meter`（[`packages/util/memory-meter/src/index.ts`](../packages/util/memory-meter/src/index.ts)）
 - `@deepseek-ai/dsh-native-command`（[`packages/util/native-command/src/index.ts`](../packages/util/native-command/src/index.ts)）
 - `@deepseek-ai/dsh-output-retention`（[`packages/util/output-retention/src/index.ts`](../packages/util/output-retention/src/index.ts)）
 - `@deepseek-ai/dsh-sandbox-windows-acl`（[`packages/sandbox/sandbox-windows-acl/src/index.ts`](../packages/sandbox/sandbox-windows-acl/src/index.ts)）
