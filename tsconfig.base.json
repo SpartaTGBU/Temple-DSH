@@ -357,6 +357,7 @@
       "@deepseek-ai/dsh-mcp-client": ["./packages/mcp/mcp-client/src"],
       "@deepseek-ai/dsh-mcp-client/invariant": ["./packages/mcp/mcp-client/src/invariant.ts"],
       "@deepseek-ai/dsh-memory-meter": ["./packages/util/memory-meter/src"],
+      "@deepseek-ai/dsh-memory-meter/chunk-reclaim": ["./packages/util/memory-meter/src/chunk-reclaim.ts"],
       "@deepseek-ai/dsh-memory-meter/invariant": ["./packages/util/memory-meter/src/invariant.ts"],
       "@deepseek-ai/dsh-memory-pressure": ["./packages/runtime-diagnostics/memory-pressure/src"],
       "@deepseek-ai/dsh-memory-pressure/invariant": ["./packages/runtime-diagnostics/memory-pressure/src/invariant.ts"],
