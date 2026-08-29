@@ -6770,6 +6770,19 @@ importers:
         specifier: workspace:^
         version: link:../../../vendor/cordis
 
+  packages/runtime-diagnostics/memory-pressure:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../invariants
+
   packages/sandbox/sandbox:
     devDependencies:
       '@deepseek-ai/cordis':

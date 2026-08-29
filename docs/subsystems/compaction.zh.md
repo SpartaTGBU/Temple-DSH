@@ -209,6 +209,23 @@ Deterministic head/middle/tail pruning for current tool-result surface nodes.
 measureContent(blocks: readonly ContentBlock[]): number
 
 /**
+ * Count newline-delimited lines across text content; non-text blocks cost zero.
+ * Blocks concatenate, so a block boundary does not implicitly start a new line.
+ * @param blocks - tool-result content to measure.
+ * @returns total line count across text blocks.
+ */
+measureLines(blocks: readonly ContentBlock[]): number
+
+/**
+ * Report whether content trips any configured prune trigger.
+ * Char budget always applies; the optional line budget fires independently
+ * (pi-agent dual-limit style: whichever limit trips first wins).
+ * @param blocks - tool-result content to test.
+ * @returns true when the content is over any budget.
+ */
+exceedsBudget(blocks: readonly ContentBlock[]): boolean
+
+/**
  * Replace an over-budget text middle while retaining rich-block order.
  * Text slicing is by Unicode code point, not UTF-16 code unit, so a retained
  * boundary cannot split a surrogate pair. Grapheme clusters may still split.
@@ -216,6 +233,18 @@ measureContent(blocks: readonly ContentBlock[]): number
  * @returns pruned content, or `null` when the text is within budget.
  */
 pruneContent(blocks: readonly ContentBlock[]): ContentBlock[] | null
+
+/**
+ * Compute the [removedStart, removedEnd) char span to drop, honoring both the
+ * char budgets and, when configured, the line budget. The line budget maps to
+ * char offsets by keeping whole leading and trailing lines, so a char-small
+ * but line-heavy result still shrinks. The char and line removals are unioned
+ * (the wider removal wins on each side) so the replacement satisfies both.
+ * @param blocks - original tool-result content.
+ * @param totalChars - total code points across text blocks.
+ * @returns inclusive-exclusive char offsets of the removed middle.
+ */
+removalWindow(blocks: readonly ContentBlock[], totalChars: number): [number, number]
 
 /**
  * Prune every over-budget tool result from one stable current-surface snapshot.

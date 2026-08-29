@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-runtime-diagnostics 组为 DeepSeek Harness 组合提供运行时自检：一个包 `invariants` 在组合运行期间运行包自有检查，验证每个包的持久事件与数据关系。违规会以归因到拥有该关系的包的错误呈现；全局开关与包名过滤器控制运行哪些检查。当组合需要在正常运行中验证自身运行时约定时，请使用本组的包。
+runtime-diagnostics 组为 DeepSeek Harness 组合提供运行时自检：`invariants` 在组合运行期间运行包自有检查，验证每个包的持久事件与数据关系。违规会以归因到拥有该关系的包的错误呈现；全局开关与包名过滤器控制运行哪些检查。当组合需要在正常运行中验证自身运行时约定时，请使用本组的包。
 
 ## 目录
 
@@ -25,6 +25,7 @@ runtime-diagnostics 组为 DeepSeek Harness 组合提供运行时自检：一个
 | 包 | 职责 | ctx 键 |
 |---|---|---|
 | [`invariants`](invariants/README.zh.md) | 运行包自有运行时检查，并按所属包报告每次失败 | 注册到 `ctx.invariants` |
+| [`memory-pressure`](memory-pressure/README.zh.md) | 将宿主 heap-used 按水位采样并发出 `runtime/memory-pressure` 级别跃迁 | 注册到 `ctx.memoryPressure` |
 
 -----
 

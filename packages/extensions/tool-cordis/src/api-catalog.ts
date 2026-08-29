@@ -1200,6 +1200,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'memoryPressure',
+    summary: 'Host memory-pressure detection service (`ctx.memoryPressure`).',
+    description: 'Host memory-pressure detection service (`ctx.memoryPressure`).',
+    methods: [
+      {
+        signature: 'sample(): MemoryPressureSample',
+        description: 'Take one reading now, publish a transition when the level changed, and return the sample. Exposed so a caller (or a test) can force a sample outside the interval.',
+        parameters: [],
+        returns: 'the sample taken.',
+      },
+    ],
+  },
+  {
     key: 'messageFeedback',
     summary: 'Storage-domain sidecar service.',
     description: 'Storage-domain sidecar service. It inspects persisted Session history and never creates or resumes an Agent or Session.',
@@ -2480,10 +2493,28 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'total Unicode code points across text blocks.',
       },
       {
+        signature: 'measureLines(blocks: readonly ContentBlock[]): number',
+        description: 'Count newline-delimited lines across text content; non-text blocks cost zero. Blocks concatenate, so a block boundary does not implicitly start a new line.',
+        parameters: [{ name: 'blocks', description: 'tool-result content to measure.' }],
+        returns: 'total line count across text blocks.',
+      },
+      {
+        signature: 'exceedsBudget(blocks: readonly ContentBlock[]): boolean',
+        description: 'Report whether content trips any configured prune trigger. Char budget always applies; the optional line budget fires independently (pi-agent dual-limit style: whichever limit trips first wins).',
+        parameters: [{ name: 'blocks', description: 'tool-result content to test.' }],
+        returns: 'true when the content is over any budget.',
+      },
+      {
         signature: 'pruneContent(blocks: readonly ContentBlock[]): ContentBlock[] | null',
         description: 'Replace an over-budget text middle while retaining rich-block order. Text slicing is by Unicode code point, not UTF-16 code unit, so a retained boundary cannot split a surrogate pair. Grapheme clusters may still split.',
         parameters: [{ name: 'blocks', description: 'original tool-result content.' }],
         returns: 'pruned content, or `null` when the text is within budget.',
+      },
+      {
+        signature: 'removalWindow(blocks: readonly ContentBlock[], totalChars: number): [number, number]',
+        description: 'Compute the [removedStart, removedEnd) char span to drop, honoring both the char budgets and, when configured, the line budget. The line budget maps to char offsets by keeping whole leading and trailing lines, so a char-small but line-heavy result still shrinks. The char and line removals are unioned (the wider removal wins on each side) so the replacement satisfies both.',
+        parameters: [{ name: 'blocks', description: 'original tool-result content.' }, { name: 'totalChars', description: 'total code points across text blocks.' }],
+        returns: 'inclusive-exclusive char offsets of the removed middle.',
       },
       {
         signature: 'pruneSession(session: Session): PruneResult',
@@ -3153,6 +3184,14 @@ export const EVENT_API: readonly EventApiEntry[] = [
     summary: 'Waterfall around every streaming model call (retry, replay, routing).',
     description: 'Waterfall around every streaming model call (retry, replay, routing). Bound to the LlmRuntime; call `next()` to reach the resolved adapter\'s stream, or yield your own chunks to short-circuit.',
     parameters: [{ name: 'options', description: 'the full request. A LOOP-built request carries the process-local {@link markAgentLoopRequest} identity and arrives deep-frozen (mutation throws): its content is a pure function of the session log (the reconstructability Agent Note), so listeners read it, never rewrite it. Hand-built calls do not carry that marker; their messages already obey the immutable creation contract.' }],
+  },
+  {
+    name: 'runtime/memory-pressure',
+    mode: 'emit',
+    signature: '\'runtime/memory-pressure\'(sample: MemoryPressureSample): void',
+    summary: 'The host memory-pressure level changed.',
+    description: 'The host memory-pressure level changed. Emitted only on a transition, so a steady state produces no traffic. Responders read the new level and shed proportionally; the sample carries the reading that triggered it. Dispatched synchronously to observers; a throwing listener is contained and never reaches the sampler timer.',
+    parameters: [{ name: 'sample', description: 'the level and the memory reading that produced it.' }],
   },
   {
     name: 'session-telemetry/record',
@@ -4341,6 +4380,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ManualCompactAgentContext',
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
+  },
+  {
+    name: 'MemoryPressureLevel',
+    declaration: 'export type MemoryPressureLevel = \'normal\' | \'elevated\' | \'critical\';',
+  },
+  {
+    name: 'MemoryPressureSample',
+    declaration: 'export interface MemoryPressureSample {\n    readonly level: MemoryPressureLevel;\n    readonly heapUsedBytes: number;\n    readonly elevatedBytes: number;\n    readonly criticalBytes: number;\n}',
   },
   {
     name: 'Message',

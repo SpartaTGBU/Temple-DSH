@@ -134,6 +134,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns isolated per-session replay folds; pressure consumers share immutable revisioned measurements.',
   },
   {
+    key: 'memoryPressure',
+    pkg: 'memory-pressure',
+    title: 'Host memory-pressure detection',
+    mode: 'core',
+    consumers: [],
+    note: 'Samples host heap-used against watermarks and emits runtime/memory-pressure level transitions; shedding responders consume the event.',
+  },
+  {
     key: 'toolResultPruner',
     pkg: 'compaction-tool-result-pruner',
     title: 'Model-free tool-result pruning',
