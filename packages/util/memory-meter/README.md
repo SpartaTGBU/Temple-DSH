@@ -54,6 +54,19 @@ const report = reportSessionMemory(store)
 
 `reportSessionMemory` accepts anything with a `list()` returning event-bearing units, so the dsh `SessionStore` (`ctx.sessions`) fits directly. The costliest session is `report.sessions[0]`.
 
+### Measuring cold log for tiering
+
+```ts
+import { estimateLogTiering, reportLogTiering } from '@deepseek-ai/dsh-memory-meter/log-tiering'
+
+declare const session: { readonly events: readonly unknown[]; readonly surface: { readonly nodes: readonly number[] } }
+
+const est = estimateLogTiering(session)
+// est.coldBytes is the resident prefix below the derivation surface — pageable to persistence
+```
+
+`deriveMessages()` only walks the surface nodes, so every event below the lowest surface node is cold and never re-derived unless a fork or export faults it back. `estimateLogTiering` splits a session's resident log into that cold prefix (reclaimable) and the hot tail (must stay resident), reading only the public events and surface. `reportLogTiering(store)` ranks sessions by descending cold bytes. This entry is zero-dependency like the base module.
+
 ### Running the host memory benchmark
 
 ```text
@@ -77,6 +90,7 @@ The library is built on one boundary: estimate from the public log, never from p
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `estimateEvents`, `estimateSessionMemory`, `reportSessionMemory`, `contentBytesOf`, `utf8ByteLength`, `EVENT_OBJECT_OVERHEAD_BYTES` |
+| [`src/log-tiering.ts`](src/log-tiering.ts) | `estimateLogTiering`, `reportLogTiering`, `coldBoundaryOf` (optional `./log-tiering` entry; zero-dependency) |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant; the accounting algebra is exercised by unit tests) |
 | [`tests/host-memory.perf.ts`](tests/host-memory.perf.ts) | Runnable host benchmark comparing estimate to real RSS/heap |
 

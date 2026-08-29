@@ -54,6 +54,19 @@ const report = reportSessionMemory(store)
 
 `reportSessionMemory` 接受任何带有返回承载事件单元的 `list()` 的对象，因此 dsh 的 `SessionStore`（`ctx.sessions`）可直接适配。成本最高的会话是 `report.sessions[0]`。
 
+### 测量用于分层的冷日志
+
+```ts
+import { estimateLogTiering, reportLogTiering } from '@deepseek-ai/dsh-memory-meter/log-tiering'
+
+declare const session: { readonly events: readonly unknown[]; readonly surface: { readonly nodes: readonly number[] } }
+
+const est = estimateLogTiering(session)
+// est.coldBytes is the resident prefix below the derivation surface — pageable to persistence
+```
+
+`deriveMessages()` 只遍历表层节点，因此最低表层节点以下的每个事件都是冷的，除非 fork 或导出将其换回，否则绝不重新推导。`estimateLogTiering` 将会话的常驻日志拆分为该冷前缀（可回收）与热尾（须保持常驻），只读取公开的事件与表层。`reportLogTiering(store)` 按冷字节降序对会话排序。该入口与基础模块一样零依赖。
+
 ### 运行宿主内存基准
 
 ```text
@@ -77,6 +90,7 @@ node --expose-gc --import tsx/esm packages/util/memory-meter/tests/host-memory.p
 | 文件 | 角色 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `estimateEvents`、`estimateSessionMemory`、`reportSessionMemory`、`contentBytesOf`、`utf8ByteLength`、`EVENT_OBJECT_OVERHEAD_BYTES` |
+| [`src/log-tiering.ts`](src/log-tiering.ts) | `estimateLogTiering`、`reportLogTiering`、`coldBoundaryOf`（可选 `./log-tiering` 入口；零依赖） |
 | [`src/invariant.ts`](src/invariant.ts) | 不变量伴随（无运行时不变量；计量代数由单元测试覆盖） |
 | [`tests/host-memory.perf.ts`](tests/host-memory.perf.ts) | 可运行的宿主基准，将估算与真实 RSS/堆对比 |
 
