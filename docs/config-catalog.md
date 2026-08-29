@@ -2024,6 +2024,24 @@ export interface Config {
 
 Source: [`packages/context/session-reference/src/config.ts:11`](../packages/context/session-reference/src/config.ts)
 
+<a id="deepseek-aidsh-session-residency"></a>
+
+## `@deepseek-ai/dsh-session-residency`
+
+```ts config-catalog
+/** Residency policy configuration. */
+export interface ResidencyConfig {
+  /** Idle milliseconds before a session may be evicted. Defaults to 5 minutes. */
+  idleMs?: number
+  /** Pressure level at or above which eviction runs. Defaults to 'elevated'. */
+  minLevel?: 'elevated' | 'critical'
+  /** Maximum sessions evicted in one pass. Defaults to 8. */
+  maxEvictionsPerPass?: number
+}
+```
+
+Source: [`packages/session/session-residency/src/types.ts:31`](../packages/session/session-residency/src/types.ts)
+
 <a id="deepseek-aidsh-session-telemetry-otel"></a>
 
 ## `@deepseek-ai/dsh-session-telemetry-otel`

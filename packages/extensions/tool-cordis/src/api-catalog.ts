@@ -1778,6 +1778,43 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sessionResidency',
+    summary: 'Session residency decision service (`ctx.sessionResidency`).',
+    description: 'Session residency decision service (`ctx.sessionResidency`).',
+    methods: [
+      {
+        signature: 'registerExecutor(executor: ResidencyExecutor): () => void',
+        description: 'Register the mechanism that actually drops and rehydrates a session.',
+        parameters: [{ name: 'executor', description: 'the residency executor.' }],
+        returns: 'a disposer that unregisters the executor.',
+      },
+      {
+        signature: 'shouldRun(level: MemoryPressureLevel): boolean',
+        description: 'Whether the given pressure level is at or above the configured floor.',
+        parameters: [{ name: 'level', description: 'the current pressure level.' }],
+        returns: 'true when eviction should run.',
+      },
+      {
+        signature: 'plan(store: SessionListing, lastActiveAt: LastActiveAt, now: number = Date.now()): EvictionPlan',
+        description: 'Plan which sessions to evict now, ranked by descending retained bytes and filtered to idle, closed-turn sessions. Reads the store\'s public surface and the memory meter; performs no eviction itself.',
+        parameters: [{ name: 'store', description: 'the session store (its public list()).' }, { name: 'lastActiveAt', description: 'last-active timestamp accessor (ms epoch) per id.' }, { name: 'now', description: 'current time in ms epoch (injectable for tests).' }],
+        returns: 'the ordered eviction plan, capped at maxEvictionsPerPass.',
+      },
+      {
+        signature: 'async runPass(store: SessionListing, lastActiveAt: LastActiveAt, now: number = Date.now()): Promise<EvictionPlan>',
+        description: 'Run one eviction pass: plan candidates and, when an executor is registered, evict each. Returns the plan acted on. A no-executor composition returns the plan without evicting, so reporting works without opting in.',
+        parameters: [{ name: 'store', description: 'the session store.' }, { name: 'lastActiveAt', description: 'last-active timestamp accessor per id.' }, { name: 'now', description: 'current time in ms epoch (injectable for tests).' }],
+        returns: 'the eviction plan that was executed (or only planned).',
+      },
+      {
+        signature: 'async onPressure(sample: MemoryPressureSample, store: SessionListing, lastActiveAt: LastActiveAt): Promise<EvictionPlan | undefined>',
+        description: 'React to a memory-pressure transition: run a pass when the level meets the floor. The store and last-active source are supplied by the composition that wires this policy to its session store.',
+        parameters: [{ name: 'sample', description: 'the memory-pressure sample.' }, { name: 'store', description: 'the session store.' }, { name: 'lastActiveAt', description: 'last-active timestamp accessor per id.' }],
+        returns: 'the plan acted on, or undefined when the level was below the floor.',
+      },
+    ],
+  },
+  {
     key: 'sessions',
     summary: 'In-memory session store (`ctx.sessions`).',
     description: 'In-memory session store (`ctx.sessions`).\n\nPersistence is intentionally not implemented here — persistence plugins subscribe to `session/event` and flush on `session/flush` / dispose.',
@@ -4006,6 +4043,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface EpochHeader {\n    config: LlmCallConfig;\n    adapterDefaults?: LlmCallConfigAdapterDefaults;\n    system?: string;\n    tools?: ToolSchema[];\n}',
   },
   {
+    name: 'EventBearing',
+    declaration: 'export interface EventBearing {\n    readonly events: readonly unknown[];\n}',
+  },
+  {
+    name: 'EvictionCandidate',
+    declaration: 'export interface EvictionCandidate {\n    readonly id: string;\n    readonly retainedBytes: number;\n    readonly idleMs: number;\n}',
+  },
+  {
+    name: 'EvictionPlan',
+    declaration: 'export interface EvictionPlan {\n    readonly candidates: readonly EvictionCandidate[];\n    readonly totalRetainedBytes: number;\n}',
+  },
+  {
     name: 'FileDiff',
     declaration: 'export interface FileDiff {\n    path: string;\n    oldText: string | null;\n    newText: string;\n}',
   },
@@ -4272,6 +4321,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'KvUnitDescriptor',
     declaration: 'export interface KvUnitDescriptor {\n    readonly name: string;\n    readonly version: number;\n    readonly tables: readonly string[];\n    readonly hasGlobal: boolean;\n    readonly layout?: \'single\' | \'per-record\';\n}',
+  },
+  {
+    name: 'LastActiveAt',
+    declaration: 'export type LastActiveAt = (id: unknown) => number | undefined;',
   },
   {
     name: 'LlmAdapter',
@@ -4678,6 +4731,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type RequestRunOutcome = \'approved\' | \'completed\' | \'rejected\' | \'cancelled\' | \'failed\';',
   },
   {
+    name: 'ResidencyExecutor',
+    declaration: 'export interface ResidencyExecutor {\n    evict(candidate: EvictionCandidate): Promise<void> | void;\n}',
+  },
+  {
     name: 'ResolvedAlwaysRetryPolicy',
     declaration: 'export interface ResolvedAlwaysRetryPolicy extends ResolvedRetryBackoff {\n    readonly mode: \'always\';\n}',
   },
@@ -4956,6 +5013,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionLineageTrace',
     declaration: 'export type SessionLineageTrace = {\n    target: SessionRecord;\n    ancestors: SessionRecord[];\n    descendants: SessionLineageNode[];\n} & ({\n    complete: true;\n    root: SessionRecord;\n} | {\n    complete: false;\n    unresolvedParentId: SessionId;\n});',
+  },
+  {
+    name: 'SessionListing',
+    declaration: 'export interface SessionListing {\n    list(): readonly (EventBearing & {\n        readonly id: unknown;\n    })[];\n}',
   },
   {
     name: 'SessionListRequest',

@@ -27,6 +27,8 @@ flowchart LR
   svc_tokenMeter["ctx.tokenMeter<br/>Replay token measurement"]
   pkg_memory_pressure["memory-pressure"]
   svc_memoryPressure["ctx.memoryPressure<br/>Host memory-pressure detection"]
+  pkg_session_residency["session-residency"]
+  svc_sessionResidency["ctx.sessionResidency<br/>Session residency policy"]
   pkg_compaction_tool_result_pruner["compaction-tool-result-pruner"]
   svc_toolResultPruner["ctx.toolResultPruner<br/>Model-free tool-result pruning"]
   pkg_session["session"]
@@ -290,6 +292,7 @@ flowchart LR
   pkg_session_query --> svc_sessionQuery
   pkg_session_query_sqlite --> svc_sessionQuery
   pkg_session_reference --> svc_sessionReferenceResolver
+  pkg_session_residency --> svc_sessionResidency
   pkg_session_telemetry --> svc_sessionTelemetry
   pkg_session_telemetry_otel --> svc_sessionTelemetry
   pkg_session_title --> svc_sessionTitle
@@ -471,6 +474,7 @@ flowchart LR
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | Plugins prepare independent top-level fields; the official adapter merges them and commits their delivery state after HTTP acceptance. |
 | `ctx.tokenMeter` | `core` | [`token-meter`](../packages/llm/token-meter) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | Owns isolated per-session replay folds; pressure consumers share immutable revisioned measurements. |
 | `ctx.memoryPressure` | `core` | [`memory-pressure`](../packages/runtime-diagnostics/memory-pressure) | - | - | - | Samples host heap-used against watermarks and emits runtime/memory-pressure level transitions; shedding responders consume the event. |
+| `ctx.sessionResidency` | `core` | [`session-residency`](../packages/session/session-residency) | - | - | - | Ranks resident sessions with the memory meter under memory pressure and selects idle, closed-turn eviction candidates for a registered executor. |
 | `ctx.toolResultPruner` | `core` | [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | Rewrites oversized current tool results through replayable single-node surface replacements before summary compaction. |
 | `ctx.sessions` | `core` | [`session`](../packages/core/session) | - | [`agent-loop`](../packages/core/agent-loop), [`agent`](../packages/core/agent), [`session-persistence`](../packages/session/session-persistence), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver), [`invariants`](../packages/runtime-diagnostics/invariants), [`message-feedback`](../packages/feedback/message-feedback) | - | Owns append-only Session instances and emits the durable session event feed. |
 | `ctx.sessionController` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | Owns Session commands, cold reads, durable-event following, live control state, model catalogs, workspace opening, and Agent activation policy. |

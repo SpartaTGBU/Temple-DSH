@@ -142,6 +142,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Samples host heap-used against watermarks and emits runtime/memory-pressure level transitions; shedding responders consume the event.',
   },
   {
+    key: 'sessionResidency',
+    pkg: 'session-residency',
+    title: 'Session residency policy',
+    mode: 'core',
+    consumers: [],
+    note: 'Ranks resident sessions with the memory meter under memory pressure and selects idle, closed-turn eviction candidates for a registered executor.',
+  },
+  {
     key: 'toolResultPruner',
     pkg: 'compaction-tool-result-pruner',
     title: 'Model-free tool-result pruning',
