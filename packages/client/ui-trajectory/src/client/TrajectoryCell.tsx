@@ -1,5 +1,6 @@
 // Legacy standalone trajectory cell retained for direct consumers and specs.
 
+import { memo } from 'react'
 import {
   formatElapsedSeconds,
   type TrajectoryCellKind,
@@ -41,7 +42,7 @@ const TAG_CLASS: Record<TrajectoryCellKind, string | undefined> = {
  * @param props - index, kind, text, time, and optional Message metrics.
  * @returns the cell element.
  */
-export function TrajectoryCell({
+function TrajectoryCellImpl({
   t,
   index,
   kind,
@@ -93,3 +94,13 @@ export function TrajectoryCell({
     </div>
   )
 }
+
+/**
+ * Memoized trajectory cell. During streaming only the changed cell's props
+ * differ, so sibling cells with identical props skip re-rendering entirely.
+ * This mirrors opencode's per-item memoization of the conversation list.
+ * `rest` (spread DOM props) and `t` are compared by reference; every other
+ * prop is a primitive or a stable reference from the record projection.
+ */
+export const TrajectoryCell = memo(TrajectoryCellImpl)
+TrajectoryCell.displayName = 'TrajectoryCell'
