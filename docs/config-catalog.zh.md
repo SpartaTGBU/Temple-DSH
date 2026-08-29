@@ -547,6 +547,13 @@ export interface ToolResultPruneConfig {
   headChars?: number
   /** Maximum trailing Unicode code points retained. Defaults to `1024`. */
   tailChars?: number
+  /**
+   * Optional line-count trigger, inspired by the pi agent's dual-limit
+   * truncation: pruning also fires when total text line count exceeds this
+   * bound, even if `thresholdChars` was not reached. Whichever limit trips
+   * first wins. Omit (default) to keep pruning purely char-driven.
+   */
+  maxLines?: number
 }
 ```
 
