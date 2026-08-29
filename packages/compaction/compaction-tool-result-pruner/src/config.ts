@@ -17,6 +17,7 @@ const CONFIG_KEYS: ReadonlySet<string> = new Set([
   'thresholdChars',
   'headChars',
   'tailChars',
+  'maxLines',
 ])
 
 /**
@@ -29,6 +30,22 @@ export function codePointLength(text: string): number {
 }
 
 /**
+ * Count newline-delimited lines in text.
+ * A trailing newline does not add an extra empty line; empty text is zero lines.
+ * @param text - text to measure.
+ * @returns the line count.
+ */
+export function lineCount(text: string): number {
+  if (text.length === 0) return 0
+  let lines = 1
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\n') lines++
+  }
+  // A trailing newline terminates the last line rather than opening a new one.
+  return text[text.length - 1] === '\n' ? lines - 1 : lines
+}
+
+/**
  * Resolve and validate pruning budgets.
  * @param config - raw plugin configuration.
  * @returns a detached deeply immutable configuration.
@@ -38,7 +55,7 @@ export function resolveConfig(config: ToolResultPruneConfig = {}): ResolvedConfi
     if (!CONFIG_KEYS.has(key)) {
       throw new Error(
         `ToolResultPruneConfig: unknown key "${key}" `
-        + '(allowed: thresholdChars, headChars, tailChars)',
+        + '(allowed: thresholdChars, headChars, tailChars, maxLines)',
       )
     }
   }
@@ -47,10 +64,12 @@ export function resolveConfig(config: ToolResultPruneConfig = {}): ResolvedConfi
     thresholdChars: config.thresholdChars ?? DEFAULTS.thresholdChars,
     headChars: config.headChars ?? DEFAULTS.headChars,
     tailChars: config.tailChars ?? DEFAULTS.tailChars,
+    ...config.maxLines !== undefined ? { maxLines: config.maxLines } : {},
   }
   assertPositiveInteger('thresholdChars', resolved.thresholdChars)
   assertNonNegativeInteger('headChars', resolved.headChars)
   assertNonNegativeInteger('tailChars', resolved.tailChars)
+  if (resolved.maxLines !== undefined) assertPositiveInteger('maxLines', resolved.maxLines)
 
   const emittedChars = resolved.headChars
     + codePointLength(PRUNE_MARKER)
