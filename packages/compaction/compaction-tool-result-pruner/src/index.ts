@@ -13,7 +13,7 @@ import type { Session, SessionEvent, ToolResultMessage } from '@deepseek-ai/dsh-
 import type {} from '@deepseek-ai/dsh-compaction'
 // Type-only: the `ctx.tokenMeter` Context merge for the declared injection.
 import type {} from '@deepseek-ai/dsh-token-meter'
-import { codePointLength, DEFAULTS, PRUNE_MARKER, resolveConfig } from './config.ts'
+import { codePointLength, DEFAULTS, lineCount, PRUNE_MARKER, resolveConfig } from './config.ts'
 import type {
   PrunedEntry,
   PruneResult,
@@ -21,7 +21,7 @@ import type {
   ToolResultPruneConfig,
 } from './types.ts'
 
-export { codePointLength, DEFAULTS, PRUNE_MARKER, resolveConfig } from './config.ts'
+export { codePointLength, DEFAULTS, lineCount, PRUNE_MARKER, resolveConfig } from './config.ts'
 export type {
   PrunedEntry,
   PruneResult,
@@ -50,6 +50,7 @@ export class ToolResultPruner extends Service {
     thresholdChars: z.number().step(1).min(1).default(DEFAULTS.thresholdChars),
     headChars: z.number().step(1).min(0).default(DEFAULTS.headChars),
     tailChars: z.number().step(1).min(0).default(DEFAULTS.tailChars),
+    maxLines: z.number().step(1).min(1),
   })
 
   /** Resolved and immutable character budgets. */
@@ -74,6 +75,33 @@ export class ToolResultPruner extends Service {
   }
 
   /**
+   * Count newline-delimited lines across text content; non-text blocks cost zero.
+   * Blocks concatenate, so a block boundary does not implicitly start a new line.
+   * @param blocks - tool-result content to measure.
+   * @returns total line count across text blocks.
+   */
+  measureLines(blocks: readonly ContentBlock[]): number {
+    let text = ''
+    for (const block of blocks) {
+      if (block.type === 'text') text += block.text
+    }
+    return lineCount(text)
+  }
+
+  /**
+   * Report whether content trips any configured prune trigger.
+   * Char budget always applies; the optional line budget fires independently
+   * (pi-agent dual-limit style: whichever limit trips first wins).
+   * @param blocks - tool-result content to test.
+   * @returns true when the content is over any budget.
+   */
+  exceedsBudget(blocks: readonly ContentBlock[]): boolean {
+    if (this.measureContent(blocks) > this.config.thresholdChars) return true
+    if (this.config.maxLines !== undefined && this.measureLines(blocks) > this.config.maxLines) return true
+    return false
+  }
+
+  /**
    * Replace an over-budget text middle while retaining rich-block order.
    * Text slicing is by Unicode code point, not UTF-16 code unit, so a retained
    * boundary cannot split a surrogate pair. Grapheme clusters may still split.
@@ -82,10 +110,14 @@ export class ToolResultPruner extends Service {
    */
   pruneContent(blocks: readonly ContentBlock[]): ContentBlock[] | null {
     const totalChars = this.measureContent(blocks)
-    if (totalChars <= this.config.thresholdChars) return null
+    if (!this.exceedsBudget(blocks)) return null
 
-    const removedStart = this.config.headChars
-    const removedEnd = totalChars - this.config.tailChars
+    const [removedStart, removedEnd] = this.removalWindow(blocks, totalChars)
+    // A line-only trigger on char-small content can leave the char budgets
+    // unable to remove anything; skip rather than emit a non-reducing marker.
+    // The removed span must also exceed the marker length, or the replacement
+    // would not be strictly smaller than the original.
+    if (removedEnd - removedStart <= codePointLength(PRUNE_MARKER)) return null
     const pruned: ContentBlock[] = []
     let consumed = 0
     let markerInserted = false
@@ -111,14 +143,66 @@ export class ToolResultPruner extends Service {
       consumed = blockEnd
     }
 
-    /* v8 ignore next -- totalChars > threshold and valid budgets guarantee a removed text span. */
+    /* v8 ignore next -- removedStart < removedEnd guarantees a removed text span. */
     if (!markerInserted) throw new Error('tool-result prune: failed to locate the removed text span')
     const charsAfter = this.measureContent(pruned)
-    /* v8 ignore next -- config validation fixes the emitted head + marker + tail budget. */
-    if (charsAfter > this.config.thresholdChars || charsAfter >= totalChars) {
-      throw new Error('tool-result prune: replacement must be smaller and within threshold')
+    /* v8 ignore next -- removalWindow guarantees a strictly smaller replacement. */
+    if (charsAfter >= totalChars) {
+      throw new Error('tool-result prune: replacement must be smaller than the original')
     }
     return pruned
+  }
+
+  /**
+   * Compute the [removedStart, removedEnd) char span to drop, honoring both the
+   * char budgets and, when configured, the line budget. The line budget maps to
+   * char offsets by keeping whole leading and trailing lines, so a char-small
+   * but line-heavy result still shrinks. The char and line removals are unioned
+   * (the wider removal wins on each side) so the replacement satisfies both.
+   * @param blocks - original tool-result content.
+   * @param totalChars - total code points across text blocks.
+   * @returns inclusive-exclusive char offsets of the removed middle.
+   */
+  removalWindow(blocks: readonly ContentBlock[], totalChars: number): [number, number] {
+    let removedStart = this.config.headChars
+    let removedEnd = totalChars - this.config.tailChars
+
+    if (this.config.maxLines !== undefined && this.measureLines(blocks) > this.config.maxLines) {
+      let text = ''
+      for (const block of blocks) {
+        if (block.type === 'text') text += block.text
+      }
+      const points = Array.from(text)
+      // Allocate the retained line budget across head and tail by the head:tail
+      // char ratio; keep at least one line on each side when budgeted.
+      const totalBudget = this.config.headChars + this.config.tailChars
+      const headShare = totalBudget === 0 ? 0.5 : this.config.headChars / totalBudget
+      const headLines = Math.max(this.config.headChars > 0 ? 1 : 0, Math.floor(this.config.maxLines * headShare))
+      const tailLines = Math.max(this.config.tailChars > 0 ? 1 : 0, this.config.maxLines - headLines)
+
+      // End offset of the first `headLines` lines.
+      let seen = 0
+      let headEndOffset = 0
+      for (let i = 0; i < points.length && seen < headLines; i++) {
+        if (points[i] === '\n') {
+          seen++
+          headEndOffset = i + 1
+        }
+      }
+      // Start offset of the last `tailLines` lines.
+      let trailing = 0
+      let tailStartOffset = points.length
+      for (let i = points.length - 1; i >= 0; i--) {
+        if (points[i] === '\n' && i !== points.length - 1) {
+          trailing++
+          if (trailing >= tailLines) { tailStartOffset = i + 1; break }
+        }
+      }
+      // Union with the char removal: remove the wider span on each side.
+      removedStart = Math.min(removedStart, headEndOffset)
+      removedEnd = Math.max(removedEnd, tailStartOffset)
+    }
+    return [Math.max(0, removedStart), Math.min(totalChars, removedEnd)]
   }
 
   /**
