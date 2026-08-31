@@ -164,3 +164,45 @@ describe('deriveMessagesShared', () => {
     expect([...session.deriveMessagesShared()]).toEqual(scratch(session))
   })
 })
+
+describe('releaseCaches', () => {
+  it('is observationally identical: derived messages and events survive a release', () => {
+    const session = Session.create(SessionId('release-identity'))
+    session.append('turn/start', { turn: 1 })
+    userText(session, 'one')
+    userText(session, 'two')
+    const beforeMessages = session.deriveMessages()
+    const beforeEvents = session.events
+
+    const dropped = session.releaseCaches()
+    expect(dropped).toBeGreaterThan(0)
+
+    expect(session.deriveMessages()).toEqual(beforeMessages)
+    expect(session.deriveMessages()).toEqual(scratch(session))
+    expect(session.events).toEqual(beforeEvents)
+  })
+
+  it('keeps appending correct after a release', () => {
+    const session = Session.create(SessionId('release-append'))
+    session.append('turn/start', { turn: 1 })
+    userText(session, 'one')
+    session.deriveMessages()
+    session.releaseCaches()
+    userText(session, 'two')
+    expect(session.deriveMessages()).toEqual(scratch(session))
+  })
+
+  it('returns zero on a session whose caches were never built', () => {
+    const session = Session.create(SessionId('release-cold'))
+    session.append('turn/start', { turn: 1 })
+    expect(session.releaseCaches()).toBe(0)
+  })
+
+  it('refolds request context after a release', () => {
+    const session = Session.create(SessionId('release-context'))
+    session.append('request/context', { provider: 'mock', model: 'mock' })
+    const before = session.requestContext()
+    session.releaseCaches()
+    expect(session.requestContext()).toEqual(before)
+  })
+})

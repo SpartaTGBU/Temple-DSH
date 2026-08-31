@@ -31,6 +31,7 @@ flowchart LR
   svc_memoryPressure["ctx.memoryPressure<br/>Host memory-pressure detection"]
   pkg_session_residency["session-residency"]
   svc_sessionResidency["ctx.sessionResidency<br/>Session residency policy"]
+  pkg_session_residency_cache_release["session-residency-cache-release"]
   pkg_compaction_tool_result_pruner["compaction-tool-result-pruner"]
   svc_toolResultPruner["ctx.toolResultPruner<br/>Model-free tool-result pruning"]
   pkg_session["session"]
@@ -403,6 +404,7 @@ flowchart LR
   svc_sessionProjections --> pkg_tool_todo
   svc_sessionQuery --> pkg_session_reference
   svc_sessionQuery --> pkg_tool_session_query
+  svc_sessionResidency --> pkg_session_residency_cache_release
   svc_sessions --> pkg_agent
   svc_sessions --> pkg_agent_loop
   svc_sessions --> pkg_invariants
@@ -476,7 +478,7 @@ flowchart LR
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 插件准备彼此独立的顶层字段；官方适配器会合并这些字段，并在 HTTP 接受后提交其交付状态。 |
 | `ctx.tokenMeter` | `core` | [`token-meter`](../packages/llm/token-meter) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | 拥有按会话隔离的回放折叠区；压力消费方共享不可变且带修订版本的测量结果。 |
 | `ctx.memoryPressure` | `core` | [`memory-pressure`](../packages/runtime-diagnostics/memory-pressure) | - | - | - | Samples host heap-used against watermarks and emits runtime/memory-pressure level transitions; shedding responders consume the event. |
-| `ctx.sessionResidency` | `core` | [`session-residency`](../packages/session/session-residency) | - | - | - | Ranks resident sessions with the memory meter under memory pressure and selects idle, closed-turn eviction candidates for a registered executor. |
+| `ctx.sessionResidency` | `core` | [`session-residency`](../packages/session/session-residency) | - | [`session-residency-cache-release`](../packages/session/session-residency-cache-release) | - | Ranks resident sessions with the memory meter under memory pressure and selects idle, closed-turn eviction candidates for a registered executor. |
 | `ctx.toolResultPruner` | `core` | [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | 在摘要压缩前，通过可回放的单节点表层替换来改写过大的当前工具结果。 |
 | `ctx.sessions` | `core` | [`session`](../packages/core/session) | - | [`agent-loop`](../packages/core/agent-loop), [`agent`](../packages/core/agent), [`session-persistence`](../packages/session/session-persistence), [`session-query`](../packages/session-query/session-query), [`session-query-sqlite`](../packages/session-query/session-query-sqlite), [`subagent-in-process-driver`](../packages/subagent/subagent-in-process-driver), [`invariants`](../packages/runtime-diagnostics/invariants), [`message-feedback`](../packages/feedback/message-feedback) | - | 拥有仅追加的 Session 实例，并发出持久的会话事件流。 |
 | `ctx.sessionController` | `core` | [`api-session-controller`](../packages/api/session-controller) | - | - | - | 负责 Session 命令、冷读取、持久事件跟随、实时控制状态、模型目录、workspace 打开与 Agent 激活策略。 |
