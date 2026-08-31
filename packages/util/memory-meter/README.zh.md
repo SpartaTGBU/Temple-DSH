@@ -104,7 +104,6 @@ node --expose-gc --import tsx/esm packages/util/memory-meter/tests/host-memory.p
 |---|---|
 | [`src/index.ts`](src/index.ts) | `estimateEvents`、`estimateSessionMemory`、`reportSessionMemory`、`contentBytesOf`、`utf8ByteLength`、`EVENT_OBJECT_OVERHEAD_BYTES` |
 | [`src/chunk-reclaim.ts`](src/chunk-reclaim.ts) | `estimateChunkReclaim`、`reportChunkReclaim`、`countChunkEvents`（可选 `./chunk-reclaim` 入口；需要 `dsh-session`） |
-
 | [`src/log-tiering.ts`](src/log-tiering.ts) | `estimateLogTiering`、`reportLogTiering`、`coldBoundaryOf`（可选 `./log-tiering` 入口；零依赖） |
 | [`src/invariant.ts`](src/invariant.ts) | 不变量伴随（无运行时不变量；计量代数由单元测试覆盖） |
 | [`tests/host-memory.perf.ts`](tests/host-memory.perf.ts) | 可运行的宿主基准，将估算与真实 RSS/堆对比 |

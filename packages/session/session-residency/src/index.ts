@@ -64,8 +64,11 @@ export class SessionResidency extends Service {
   })
 
   private executor: ResidencyExecutor | undefined
+  /** Resolved idle window in milliseconds before a session may be evicted. */
   readonly idleMs: number
+  /** Resolved pressure level at or above which an eviction pass runs. */
   readonly minLevel: 'elevated' | 'critical'
+  /** Resolved maximum number of sessions evicted in one pass. */
   readonly maxEvictionsPerPass: number
 
   constructor(ctx: Context, config: ResidencyConfig = {}) {

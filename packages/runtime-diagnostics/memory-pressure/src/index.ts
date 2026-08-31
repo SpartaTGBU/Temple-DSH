@@ -35,8 +35,9 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-/** Default heap-used watermarks (bytes): 1 GiB elevated, 1.5 GiB critical. */
+/** Default elevated heap-used watermark in bytes (1 GiB). */
 export const DEFAULT_ELEVATED_BYTES = 1024 * 1024 * 1024
+/** Default critical heap-used watermark in bytes (1.5 GiB). */
 export const DEFAULT_CRITICAL_BYTES = Math.floor(1.5 * 1024 * 1024 * 1024)
 /** Default sampling interval (ms). */
 export const DEFAULT_INTERVAL_MS = 5000

@@ -1783,6 +1783,21 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     description: 'Session residency decision service (`ctx.sessionResidency`).',
     methods: [
       {
+        signature: 'readonly idleMs: number',
+        description: 'Resolved idle window in milliseconds before a session may be evicted.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly minLevel: \'elevated\' | \'critical\'',
+        description: 'Resolved pressure level at or above which an eviction pass runs.',
+        parameters: [],
+      },
+      {
+        signature: 'readonly maxEvictionsPerPass: number',
+        description: 'Resolved maximum number of sessions evicted in one pass.',
+        parameters: [],
+      },
+      {
         signature: 'registerExecutor(executor: ResidencyExecutor): () => void',
         description: 'Register the mechanism that actually drops and rehydrates a session.',
         parameters: [{ name: 'executor', description: 'the residency executor.' }],

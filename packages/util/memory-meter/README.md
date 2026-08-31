@@ -104,7 +104,6 @@ The library is built on one boundary: estimate from the public log, never from p
 |---|---|
 | [`src/index.ts`](src/index.ts) | `estimateEvents`, `estimateSessionMemory`, `reportSessionMemory`, `contentBytesOf`, `utf8ByteLength`, `EVENT_OBJECT_OVERHEAD_BYTES` |
 | [`src/chunk-reclaim.ts`](src/chunk-reclaim.ts) | `estimateChunkReclaim`, `reportChunkReclaim`, `countChunkEvents` (optional `./chunk-reclaim` entry; needs `dsh-session`) |
-
 | [`src/log-tiering.ts`](src/log-tiering.ts) | `estimateLogTiering`, `reportLogTiering`, `coldBoundaryOf` (optional `./log-tiering` entry; zero-dependency) |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant; the accounting algebra is exercised by unit tests) |
 | [`tests/host-memory.perf.ts`](tests/host-memory.perf.ts) | Runnable host benchmark comparing estimate to real RSS/heap |

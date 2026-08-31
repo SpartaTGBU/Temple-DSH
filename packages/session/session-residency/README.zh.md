@@ -46,17 +46,23 @@ kind: "package-reference"
 ### 注册执行器并对压力做出反应
 
 ```ts
-declare const ctx: import('@deepseek-ai/cordis').Context
-declare const store: import('@deepseek-ai/dsh-memory-meter').SessionListing
+import type {} from '@deepseek-ai/dsh-session-residency'
+import type { EvictionCandidate } from '@deepseek-ai/dsh-session-residency'
+import type { MemoryPressureSample } from '@deepseek-ai/dsh-memory-pressure'
+import type { Context } from '@deepseek-ai/cordis'
+import type { SessionListing } from '@deepseek-ai/dsh-memory-meter'
+
+declare const ctx: Context
+declare const store: SessionListing
 declare const lastActiveAt: (id: unknown) => number | undefined
 
 ctx.sessionResidency.registerExecutor({
-  async evict(candidate) {
+  async evict(candidate: EvictionCandidate) {
     // persist and drop the session's resident state so it rehydrates on next access
   },
 })
 
-ctx.on('runtime/memory-pressure', (sample) => {
+ctx.on('runtime/memory-pressure', (sample: MemoryPressureSample) => {
   void ctx.sessionResidency.onPressure(sample, store, lastActiveAt)
 })
 ```
