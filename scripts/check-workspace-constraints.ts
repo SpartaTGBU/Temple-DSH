@@ -141,6 +141,11 @@ function workspaceManifests(): WorkspaceManifest[] {
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  // The memory-meter's session-aware measurement subpaths ship as their own
+  // bundles beside the base lib: `./chunk-reclaim` (needs dsh-session) and
+  // `./log-tiering` keep the base module dependency-free, so each is a separate
+  // single-entry bundle rather than a shared chunk.
+  '@deepseek-ai/dsh-memory-meter': ['lib/chunk-reclaim.js', 'lib/log-tiering.js'],
   // Statically linked client libraries keep their stylesheets next to the emitted
   // JavaScript, which imports them by relative path: the compile shell runs
   // them through its own CSS pipeline, so the sheets are published artifacts.

@@ -27,12 +27,17 @@
     "./chunk-reclaim": {
       "types": "./lib/types/chunk-reclaim.d.ts",
       "default": "./lib/chunk-reclaim.js"
+    },
+    "./log-tiering": {
+      "types": "./lib/types/log-tiering.d.ts",
+      "default": "./lib/log-tiering.js"
     }
   },
   "files": [
     "lib/index.js",
-    "lib/chunk-reclaim.js",
     "lib/invariant.js",
+    "lib/chunk-reclaim.js",
+    "lib/log-tiering.js",
     "lib/types/**/*.d.ts"
   ],
   "license": "MIT",
