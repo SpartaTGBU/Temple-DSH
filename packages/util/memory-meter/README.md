@@ -54,6 +54,19 @@ const report = reportSessionMemory(store)
 
 `reportSessionMemory` accepts anything with a `list()` returning event-bearing units, so the dsh `SessionStore` (`ctx.sessions`) fits directly. The costliest session is `report.sessions[0]`.
 
+### Measuring reclaimable chunk bytes
+
+```ts
+import { estimateChunkReclaim, reportChunkReclaim } from '@deepseek-ai/dsh-memory-meter/chunk-reclaim'
+
+declare const session: { readonly events: readonly import('@deepseek-ai/dsh-session').SessionEvent[] }
+
+const est = estimateChunkReclaim(session.events)
+// est.reclaimableBytes = residentBytes - packedBytes, the heap a chunk-run pack would free
+```
+
+Streamed `assistant/chunk` runs dominate a completed session's resident bytes. `estimateChunkReclaim` reports how much a session would reclaim by packing those runs with the shipped chunk-row codec — a pure, non-mutating measurement over a read-only copy. `reportChunkReclaim(store)` ranks every listed session by descending reclaimable chunk bytes. This entry needs `@deepseek-ai/dsh-session`; the base module stays dependency-free.
+
 ### Running the host memory benchmark
 
 ```text
@@ -77,6 +90,7 @@ The library is built on one boundary: estimate from the public log, never from p
 | File | Role |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `estimateEvents`, `estimateSessionMemory`, `reportSessionMemory`, `contentBytesOf`, `utf8ByteLength`, `EVENT_OBJECT_OVERHEAD_BYTES` |
+| [`src/chunk-reclaim.ts`](src/chunk-reclaim.ts) | `estimateChunkReclaim`, `reportChunkReclaim`, `countChunkEvents` (optional `./chunk-reclaim` entry; needs `dsh-session`) |
 | [`src/invariant.ts`](src/invariant.ts) | Invariant companion (no runtime invariant; the accounting algebra is exercised by unit tests) |
 | [`tests/host-memory.perf.ts`](tests/host-memory.perf.ts) | Runnable host benchmark comparing estimate to real RSS/heap |
 

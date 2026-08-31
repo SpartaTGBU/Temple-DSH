@@ -54,6 +54,19 @@ const report = reportSessionMemory(store)
 
 `reportSessionMemory` 接受任何带有返回承载事件单元的 `list()` 的对象，因此 dsh 的 `SessionStore`（`ctx.sessions`）可直接适配。成本最高的会话是 `report.sessions[0]`。
 
+### 测量可回收的分块字节
+
+```ts
+import { estimateChunkReclaim, reportChunkReclaim } from '@deepseek-ai/dsh-memory-meter/chunk-reclaim'
+
+declare const session: { readonly events: readonly import('@deepseek-ai/dsh-session').SessionEvent[] }
+
+const est = estimateChunkReclaim(session.events)
+// est.reclaimableBytes = residentBytes - packedBytes, the heap a chunk-run pack would free
+```
+
+流式 `assistant/chunk` 运行主导着已完成会话的常驻字节。`estimateChunkReclaim` 报告用随附的分块行编解码器打包这些运行可回收多少——一次在只读副本上的纯粹、非变异测量。`reportChunkReclaim(store)` 按可回收分块字节降序对每个列出的会话排序。该入口需要 `@deepseek-ai/dsh-session`；基础模块保持零依赖。
+
 ### 运行宿主内存基准
 
 ```text
@@ -77,6 +90,7 @@ node --expose-gc --import tsx/esm packages/util/memory-meter/tests/host-memory.p
 | 文件 | 角色 |
 |---|---|
 | [`src/index.ts`](src/index.ts) | `estimateEvents`、`estimateSessionMemory`、`reportSessionMemory`、`contentBytesOf`、`utf8ByteLength`、`EVENT_OBJECT_OVERHEAD_BYTES` |
+| [`src/chunk-reclaim.ts`](src/chunk-reclaim.ts) | `estimateChunkReclaim`、`reportChunkReclaim`、`countChunkEvents`（可选 `./chunk-reclaim` 入口；需要 `dsh-session`） |
 | [`src/invariant.ts`](src/invariant.ts) | 不变量伴随（无运行时不变量；计量代数由单元测试覆盖） |
 | [`tests/host-memory.perf.ts`](tests/host-memory.perf.ts) | 可运行的宿主基准，将估算与真实 RSS/堆对比 |
 
