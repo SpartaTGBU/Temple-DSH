@@ -20,7 +20,7 @@ function validateStream(value: unknown, field: string, fail: InvariantFailure): 
   const record = value
   if (typeof record.text !== 'string') fail(`${field}.text must be a string`)
   if (typeof record.truncated !== 'boolean') fail(`${field}.truncated must be a boolean`)
-  if (record.spillPath !== undefined && typeof record.spillPath !== 'string') fail(`${field}.spillPath must be a string`)
+  if ('spillPath' in record) fail(`${field}.spillPath must not be exposed`)
 }
 
 function validateGraphifyValue(value: unknown, toolName: string, fail: InvariantFailure): void {

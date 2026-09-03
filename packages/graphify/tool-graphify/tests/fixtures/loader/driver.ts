@@ -34,7 +34,7 @@ try {
     signal: new AbortController().signal,
     callId: ToolCallId('graphify-loader-index'),
     name: 'graphify_index',
-    arguments: { operation: 'update', path: 'src' },
+    arguments: { operation: 'update' },
   })
   const query = await ctx.tools.execute({
     signal: new AbortController().signal,

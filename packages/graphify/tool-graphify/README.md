@@ -46,13 +46,13 @@ Load this package only in profiles where the agent may maintain a Graphify graph
 | `maxOutputBytes` | `128000` | Per-stream retained stdout/stderr bytes |
 | `graceMs` | `3000` | Process-tree termination grace after cancellation |
 
-`graphify_index` accepts `operation: "index" | "update"`. `index` runs `graphify extract <path> --code-only --no-viz` by default, producing `graphify-out/graph.json` without LLM-backed document/media extraction. Set `code_only: false` or `no_viz: false` only when the deployment has chosen those Graphify behaviors. `update` runs `graphify update <path>` for changed files.
+`graphify_index` accepts `operation: "index" | "update"`. `index` runs `graphify extract <path> --out <workspace> --code-only --no-cluster` by default, producing the workspace's `graphify-out/graph.json` with local AST extraction and without LLM calls or clustering. Set `code_only: false` or `no_cluster: false` only when the deployment has chosen those Graphify behaviors. A custom `path` may narrow the initial scan while `--out` keeps the graph workspace-owned. `update` always runs `graphify update <workspace>` and rejects `path`, because Graphify discovers its update graph relative to the scan root.
 
 `graphify_query` accepts `operation: "query" | "explain" | "path"`. It always reads `<workspace>/graphify-out/graph.json`; callers cannot point it at another graph. `query` takes `question`, optional `budget`, `dfs`, and repeated `context` filters. `explain` takes `node`. `path` takes `source` and `target`.
 
 ### What can go wrong
 
-A missing CLI returns `graphify CLI unavailable: ... Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.` Paths outside the session workspace are rejected before the binary is resolved. Query operations require `graphify-out/graph.json`; run `graphify_index` first when it is missing. Non-zero Graphify exits are returned as tool successes with stdout, stderr, signal, timeout, and exit-code fields so the agent can inspect the CLI's own diagnostic.
+A missing CLI returns `graphify CLI unavailable. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.` without forwarding host resolver details. Paths outside the session workspace are rejected before the binary is resolved. Indexing also rejects an existing `graphify-out` directory or graph symlink whose canonical target escapes the workspace, while allowing Graphify to create a missing contained output. Query operations require a regular, readable contained graph; run `graphify_index` first when it is missing. Non-zero Graphify exits are returned as tool successes with bounded stdout, bounded stderr, signal, timeout, and exit-code fields so the agent can inspect the CLI's own diagnostic.
 
 -----
 
@@ -62,9 +62,9 @@ A missing CLI returns `graphify CLI unavailable: ... Install the PyPI package 'g
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin is a model-facing Consumer over the subprocess seam. It resolves `binaryPath` through `ctx.subprocess.resolveExecutable`, spawns an argv array with `stdin: ignore`, and collects stdout/stderr under fixed byte caps. It passes `GRAPHIFY_QUERY_LOG_DISABLE=1` to avoid writing a plaintext query log from model calls.
+The plugin is a model-facing Consumer over the subprocess seam. It resolves `binaryPath` through `ctx.subprocess.resolveExecutable`, spawns an argv array with `stdin: ignore`, and collects stdout/stderr under fixed byte caps. The subprocess provider removes credential-shaped ambient variables; the plugin explicitly passes only `GRAPHIFY_QUERY_LOG_DISABLE=1` to avoid writing a plaintext query log from model calls. It awaits whole-tree exit before publishing an outcome after normal completion, timeout, or cancellation.
 
-Workspace containment is checked with canonical directory paths. Relative paths resolve against the session cwd or configured `workspaceRoot`; absolute paths must still realpath under that root. Query operations construct the graph path internally as `graphify-out/graph.json`, require it to be readable, and never accept a model-provided graph path.
+Workspace containment is checked with canonical paths. Relative paths resolve against the session cwd or configured `workspaceRoot`; absolute paths and symlink or junction targets must still realpath under that root. Query operations construct and canonicalize `graphify-out/graph.json`, require a regular readable file, and never accept a model-provided graph path.
 
 ### Source map
 
@@ -111,7 +111,7 @@ Prefix-stable while the tool visibility and config-dependent schema text are unc
 
 #### What the model sees
 
-Successful CLI exits render stdout with trailing whitespace removed, or `<operation> completed.` when stdout is empty. Failed CLI exits render `graphify <operation> failed.`, stdout, a `[stderr]` section when present, and timeout/signal/exit markers. The canonical JSON value also carries the argv tail, workspace root, target or graph path, stdout/stderr truncation facts, and process outcome fields.
+Successful CLI exits render newline-normalized stdout with trailing whitespace removed, or `<operation> completed.` when stdout is empty. Failed CLI exits render `graphify <operation> failed.`, stdout, a `[stderr]` section when present, truncation markers, and timeout/signal/exit markers. The canonical JSON value also carries the argv tail, workspace root, target or graph path, bounded stdout/stderr, and process outcome fields; private collector spill paths and executable-resolution diagnostics are not model-visible.
 
 #### Token effect
 
@@ -142,6 +142,7 @@ Append-only; the error follows the reusable request prefix.
 These limits define when the opt-in tool is a poor fit or needs deployment care.
 
 - **Graphify remains an external CLI** — the package does not vendor or install `graphifyy`; deployments must install it and keep its Python environment healthy.
+- **Ambient credentials are not forwarded** — `code_only: false` can use only a credential-free Graphify backend unless a deployment wraps Graphify in a separately configured executable.
 - **Indexing is foreground-only** — large workspaces can hit the tool timeout; use a wider configured timeout or run Graphify outside the agent when initial extraction is too expensive.
 - **Graph query output is plain text** — the package preserves Graphify's deterministic CLI text instead of re-parsing nodes and edges into a Harness-native graph result.
 

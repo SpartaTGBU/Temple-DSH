@@ -9,7 +9,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { constants } from 'node:fs'
-import { access, realpath, stat } from 'node:fs/promises'
+import { access, lstat, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { defineTool, TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
@@ -25,6 +25,7 @@ const DEFAULT_TIMEOUT_MS = 120_000
 const DEFAULT_MAX_TIMEOUT_MS = 600_000
 const DEFAULT_MAX_OUTPUT_BYTES = 128_000
 const DEFAULT_GRACE_MS = 3_000
+const MAX_TIMER_DELAY_MS = 2_147_483_647
 const GRAPHIFY_OUT = 'graphify-out'
 const GRAPH_JSON = 'graph.json'
 
@@ -64,7 +65,7 @@ interface GraphifyIndexArgs {
   path?: string
   timeoutMs?: number
   code_only?: boolean
-  no_viz?: boolean
+  no_cluster?: boolean
 }
 
 interface GraphifyQueryArgs {
@@ -90,9 +91,11 @@ interface CliRunResult {
   signal: string | null
   timedOut: boolean
   aborted: boolean
-  stdout: CollectedOutput
-  stderr: CollectedOutput
+  stdout: BoundedOutput
+  stderr: BoundedOutput
 }
+
+type BoundedOutput = Pick<CollectedOutput, 'text' | 'truncated'>
 
 /** Stable error for calls that name a path outside the owning workspace. */
 export class GraphifyWorkspaceEscapeError extends Error {
@@ -101,19 +104,24 @@ export class GraphifyWorkspaceEscapeError extends Error {
    * @param workspaceRoot - Canonical workspace root.
    */
   constructor(readonly requested: string, readonly workspaceRoot: string) {
-    super(`graphify path ${JSON.stringify(requested)} escapes workspace ${JSON.stringify(workspaceRoot)}`)
+    super('graphify path escapes the session workspace')
     this.name = 'GraphifyWorkspaceEscapeError'
   }
 }
 
-function assertPositiveFinite(name: string, value: number): void {
-  if (!Number.isFinite(value) || value <= 0) {
-    throw new Error(`tool-graphify: ${name} must be a positive finite number`)
+function assertPositiveInteger(name: string, value: number): void {
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`tool-graphify: ${name} must be a positive safe integer`)
   }
 }
 
+function assertTimer(name: string, value: number): void {
+  assertPositiveInteger(name, value)
+  if (value > MAX_TIMER_DELAY_MS) throw new Error(`tool-graphify: ${name} exceeds the maximum timer delay`)
+}
+
 function resolveTimeout(argsTimeout: number | undefined, config: ResolvedConfig): number {
-  if (argsTimeout !== undefined) assertPositiveFinite('timeoutMs', argsTimeout)
+  if (argsTimeout !== undefined) assertPositiveInteger('timeoutMs', argsTimeout)
   const timeoutMs = argsTimeout ?? config.timeoutMs
   return Math.min(timeoutMs, config.maxTimeoutMs)
 }
@@ -124,10 +132,14 @@ function isInside(root: string, child: string): boolean {
 }
 
 async function existingDirectory(path: string, field: string): Promise<string> {
-  const canonical = await realpath(path)
-  const info = await stat(canonical)
-  if (!info.isDirectory()) throw new Error(`tool-graphify: ${field} must be an existing directory`)
-  return canonical
+  try {
+    const canonical = await realpath(path)
+    const info = await stat(canonical)
+    if (!info.isDirectory()) throw new Error('not a directory')
+    return canonical
+  } catch {
+    throw new Error(`tool-graphify: ${field} must be an existing directory`)
+  }
 }
 
 async function workspaceRootFor(agent: Agent | undefined, config: ResolvedConfig): Promise<string> {
@@ -149,21 +161,64 @@ export async function resolveGraphifyTarget(workspaceRoot: string, requested: st
   return canonical
 }
 
-async function graphPathFor(workspaceRoot: string): Promise<string> {
-  const outDir = resolve(workspaceRoot, GRAPHIFY_OUT)
-  const graphPath = resolve(outDir, GRAPH_JSON)
-  if (!isInside(workspaceRoot, graphPath)) throw new Error('tool-graphify: internal graph path escaped workspace')
-  await access(graphPath, constants.R_OK)
+function isMissing(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException).code === 'ENOENT'
+}
+
+async function isTrulyMissing(path: string): Promise<boolean> {
+  try {
+    await lstat(path)
+    return false
+  } catch (error) {
+    return isMissing(error)
+  }
+}
+
+async function graphPathFor(workspaceRoot: string, requireExisting: boolean): Promise<string> {
+  const outputPath = resolve(workspaceRoot, GRAPHIFY_OUT)
+  const requested = resolve(outputPath, GRAPH_JSON)
+  let canonicalOutput: string
+  try {
+    canonicalOutput = await realpath(outputPath)
+  } catch (error) {
+    if (!requireExisting && isMissing(error) && await isTrulyMissing(outputPath)) return requested
+    throw new Error('graphify graph is unavailable; run graphify_index for this workspace first')
+  }
+  const outputInfo = await stat(canonicalOutput)
+  if (!outputInfo.isDirectory()) throw new Error('graphify-out must be a directory inside the session workspace')
+  if (!isInside(workspaceRoot, canonicalOutput)) {
+    throw new Error('graphify-out must remain inside the session workspace')
+  }
+
+  let graphPath: string
+  try {
+    graphPath = await realpath(resolve(canonicalOutput, GRAPH_JSON))
+  } catch (error) {
+    const canonicalRequested = resolve(canonicalOutput, GRAPH_JSON)
+    if (!requireExisting && isMissing(error) && await isTrulyMissing(canonicalRequested)) return canonicalRequested
+    throw new Error('graphify graph is unavailable; run graphify_index for this workspace first')
+  }
+  const info = await stat(graphPath)
+  if (!info.isFile()) throw new Error('graphify graph must be a regular file inside the session workspace')
+  if (requireExisting) {
+    try {
+      await access(graphPath, constants.R_OK)
+    } catch {
+      throw new Error('graphify graph is unavailable; run graphify_index for this workspace first')
+    }
+  }
+  if (!isInside(workspaceRoot, graphPath)) {
+    throw new Error('graphify graph must remain inside the session workspace')
+  }
   return graphPath
 }
 
-function output(reader: SubprocessHandle['collected']['stdout']): CollectedOutput {
+function output(reader: SubprocessHandle['collected']['stdout']): BoundedOutput {
   if (reader === undefined) throw new Error('tool-graphify: subprocess dropped a requested collect stream')
   const read = reader.readFrom(0)
   return {
     text: read.text,
     truncated: read.lossy,
-    ...read.spillPath !== undefined ? { spillPath: read.spillPath } : {},
   }
 }
 
@@ -176,10 +231,9 @@ function abortError(): HarnessError {
 async function resolveBinary(ctx: Context, config: ResolvedConfig, signal: AbortSignal): Promise<string> {
   try {
     return await ctx.subprocess.resolveExecutable(config.binaryPath, { GRAPHIFY_QUERY_LOG_DISABLE: '1' }, signal)
-  } catch (error) {
-    if (signal.aborted) throw abortError()
-    const message = error instanceof Error ? error.message : String(error)
-    throw new Error(`graphify CLI unavailable: ${message}. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.`)
+  } catch {
+    if (signal.aborted) throw signal.reason
+    throw new Error("graphify CLI unavailable. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.")
   }
 }
 
@@ -193,40 +247,59 @@ async function runCli(
 ): Promise<Omit<CliRunResult, 'kind' | 'operation' | 'workspaceRoot' | 'argv'>> {
   if (execSignal.aborted) throw abortError()
   const fused = new AbortController()
-  let timedOut = false
-  let aborted = false
+  const state = { timedOut: false, aborted: false }
   const onAbort = (): void => {
-    aborted = true
+    state.aborted = true
     fused.abort()
   }
   const timer = setTimeout(() => {
-    timedOut = true
+    state.timedOut = true
     fused.abort()
   }, timeoutMs)
   execSignal.addEventListener('abort', onAbort, { once: true })
-  const command = await resolveBinary(ctx, config, fused.signal)
-  const handle = ctx.subprocess.spawn({
-    argv: [command, ...config.binaryArgs, ...argvTail],
-    cwd: workspaceRoot,
-    stdio: {
-      stdin: 'ignore',
-      stdout: { maxBytes: config.maxOutputBytes },
-      stderr: { maxBytes: config.maxOutputBytes },
-    },
-    graceMs: config.graceMs,
-    signal: fused.signal,
-    env: { GRAPHIFY_QUERY_LOG_DISABLE: '1' },
-  })
   try {
-    const outcome = await handle.done
+    const command = await resolveBinary(ctx, config, fused.signal)
+    let handle: SubprocessHandle
+    try {
+      handle = ctx.subprocess.spawn({
+        argv: [command, ...config.binaryArgs, ...argvTail],
+        cwd: workspaceRoot,
+        stdio: {
+          stdin: 'ignore',
+          stdout: { maxBytes: config.maxOutputBytes },
+          stderr: { maxBytes: config.maxOutputBytes },
+        },
+        graceMs: config.graceMs,
+        signal: fused.signal,
+        env: { GRAPHIFY_QUERY_LOG_DISABLE: '1' },
+      })
+    } catch {
+      if (state.aborted) throw abortError()
+      if (state.timedOut) throw new Error(`graphify operation timed out after ${timeoutMs} ms before the CLI started`)
+      throw new Error('graphify CLI failed to start')
+    }
+    let outcome: Awaited<SubprocessHandle['done']>
+    try {
+      outcome = await handle.done
+    } catch {
+      if (state.aborted) throw abortError()
+      if (state.timedOut) throw new Error(`graphify operation timed out after ${timeoutMs} ms before process output was available`)
+      throw new Error('graphify CLI failed to start')
+    }
+    await handle.waitForExit()
+    if (state.aborted) throw abortError()
     return {
       exitCode: outcome.exitCode,
       signal: outcome.signal,
-      timedOut,
-      aborted,
+      timedOut: state.timedOut,
+      aborted: state.aborted,
       stdout: output(handle.collected.stdout),
       stderr: output(handle.collected.stderr),
     }
+  } catch (error) {
+    if (state.aborted) throw abortError()
+    if (state.timedOut) throw new Error(`graphify operation timed out after ${timeoutMs} ms`)
+    throw error
   } finally {
     clearTimeout(timer)
     execSignal.removeEventListener('abort', onAbort)
@@ -234,15 +307,17 @@ async function runCli(
 }
 
 function renderCliResult(value: CliRunResult): string {
-  const stdout = value.stdout.text.trimEnd()
-  const stderr = value.stderr.text.trimEnd()
+  const stdout = value.stdout.text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trimEnd()
+  const stderr = value.stderr.text.replaceAll('\r\n', '\n').replaceAll('\r', '\n').trimEnd()
   if (value.exitCode === 0 && value.signal === null && !value.timedOut && !value.aborted) {
-    if (stdout.length > 0) return stdout
+    if (stdout.length > 0) return [stdout, ...(value.stdout.truncated ? ['[stdout truncated]'] : [])].join('\n')
     return `${value.operation} completed.`
   }
   const lines = [`graphify ${value.operation} failed.`]
   if (stdout.length > 0) lines.push(stdout)
+  if (value.stdout.truncated) lines.push('[stdout truncated]')
   if (stderr.length > 0) lines.push('[stderr]', stderr)
+  if (value.stderr.truncated) lines.push('[stderr truncated]')
   if (value.timedOut) lines.push('[timed out after argv timeout]')
   if (value.aborted) lines.push('[aborted]')
   if (value.signal !== null) lines.push(`[killed by signal: ${value.signal}]`)
@@ -251,6 +326,7 @@ function renderCliResult(value: CliRunResult): string {
 }
 
 function assertQueryArgs(args: GraphifyQueryArgs): void {
+  if (args.budget !== undefined) assertPositiveInteger('budget', args.budget)
   switch (args.operation) {
     case 'query':
       if (args.question === undefined || args.question.trim() === '') throw new Error('question is required for graphify query')
@@ -274,7 +350,6 @@ const streamSchema = {
   properties: {
     text: { type: 'string', required: true },
     truncated: { type: 'boolean', required: true },
-    spillPath: { type: 'string' },
   },
 } as const
 
@@ -300,33 +375,37 @@ const cliOutputSchema = {
 /** Register `graphify_index` and `graphify_query` model-facing tools. */
 export function apply(ctx: Context, config: Config = {}): void {
   const resolved = config as ResolvedConfig
-  assertPositiveFinite('timeoutMs', resolved.timeoutMs)
-  assertPositiveFinite('maxTimeoutMs', resolved.maxTimeoutMs)
-  assertPositiveFinite('maxOutputBytes', resolved.maxOutputBytes)
-  assertPositiveFinite('graceMs', resolved.graceMs)
+  assertTimer('timeoutMs', resolved.timeoutMs)
+  assertTimer('maxTimeoutMs', resolved.maxTimeoutMs)
+  assertPositiveInteger('maxOutputBytes', resolved.maxOutputBytes)
+  assertTimer('graceMs', resolved.graceMs)
 
   ctx.tools.register(defineTool({
     name: 'graphify_index',
     description: 'Build or update the current workspace Graphify code graph. Use index for the first build and update after source changes. Paths must stay inside the session workspace.',
     parameters: {
       operation: { type: 'string', required: true, enum: ['index', 'update'], description: 'index builds graphify-out/graph.json; update refreshes changed files in an existing graph.' },
-      path: { type: 'string', description: `Workspace-relative directory to index. Defaults to ${JSON.stringify('.')}.` },
-      timeoutMs: { type: 'number', description: 'Optional timeout in milliseconds, capped by plugin config.' },
+      path: { type: 'string', description: `Workspace-relative directory to index. Valid only for index; defaults to ${JSON.stringify('.')}.` },
+      timeoutMs: { type: 'integer', description: 'Optional positive timeout in milliseconds, capped by plugin config.' },
       code_only: { type: 'boolean', description: 'For index only, pass --code-only. Defaults true to avoid LLM-backed document/media extraction.' },
-      no_viz: { type: 'boolean', description: 'For index only, pass --no-viz. Defaults true to avoid writing graph.html.' },
+      no_cluster: { type: 'boolean', description: 'For index only, pass --no-cluster. Defaults true for a fast local-only initial graph.' },
     },
     output: { schema: cliOutputSchema, render: (_args: unknown, value: JsonValue) => [{ type: 'text', text: renderCliResult(value as unknown as CliRunResult) }] },
     async execute(args: GraphifyIndexArgs, exec: ToolRunContext) {
       const workspaceRoot = await workspaceRootFor(exec.agent, resolved)
+      if (args.operation === 'update' && args.path !== undefined) throw new Error('path is valid only for graphify index')
       const targetPath = await resolveGraphifyTarget(workspaceRoot, args.path)
+      await graphPathFor(workspaceRoot, false)
       const argv = args.operation === 'index'
         ? [
           'extract',
           targetPath,
+          '--out',
+          workspaceRoot,
           ...((args.code_only ?? true) ? ['--code-only'] : []),
-          ...((args.no_viz ?? true) ? ['--no-viz'] : []),
+          ...((args.no_cluster ?? true) ? ['--no-cluster'] : []),
         ]
-        : ['update', targetPath]
+        : ['update', workspaceRoot]
       const result = await runCli(ctx, resolved, exec.signal, workspaceRoot, argv, resolveTimeout(args.timeoutMs, resolved))
       return { kind: 'index' as const, operation: args.operation, workspaceRoot, targetPath, argv, ...result }
     },
@@ -343,16 +422,16 @@ export function apply(ctx: Context, config: Config = {}): void {
       node: { type: 'string', description: 'Required for operation=explain.' },
       source: { type: 'string', description: 'Required for operation=path.' },
       target: { type: 'string', description: 'Required for operation=path.' },
-      budget: { type: 'integer', description: 'Approximate token budget for query output.' },
+      budget: { type: 'integer', description: 'Positive approximate token budget for query output.' },
       dfs: { type: 'boolean', description: 'For operation=query, use DFS instead of BFS.' },
       context: { type: 'array', items: { type: 'string' }, description: 'For operation=query, relation contexts such as call, import, field, parameter_type, return_type, or generic_arg.' },
-      timeoutMs: { type: 'number', description: 'Optional timeout in milliseconds, capped by plugin config.' },
+      timeoutMs: { type: 'integer', description: 'Optional positive timeout in milliseconds, capped by plugin config.' },
     },
     output: { schema: cliOutputSchema, render: (_args: unknown, value: JsonValue) => [{ type: 'text', text: renderCliResult(value as unknown as CliRunResult) }] },
     async execute(args: GraphifyQueryArgs, exec: ToolRunContext) {
       assertQueryArgs(args)
       const workspaceRoot = await workspaceRootFor(exec.agent, resolved)
-      const graphPath = await graphPathFor(workspaceRoot)
+      const graphPath = await graphPathFor(workspaceRoot, true)
       let argv: string[]
       switch (args.operation) {
         case 'query':
@@ -370,9 +449,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           break
       }
       const result = await runCli(ctx, resolved, exec.signal, workspaceRoot, argv, resolveTimeout(args.timeoutMs, resolved))
-      const value = { kind: 'query' as const, operation: args.operation, workspaceRoot, graphPath, argv, ...result }
-      if (value.aborted) throw abortError()
-      return value
+      return { kind: 'query' as const, operation: args.operation, workspaceRoot, graphPath, argv, ...result }
     },
     presentCall: (args: GraphifyQueryArgs) => ({ card: 'generic', title: `Graphify ${args.operation}`, kind: 'search', rawInput: args as unknown as JsonValue }),
     isConcurrencySafe: () => true,

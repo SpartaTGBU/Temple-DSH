@@ -1120,19 +1120,19 @@ Build or update the current workspace Graphify code graph. Use index for the fir
     },
     "path": {
       "type": "string",
-      "description": "Workspace-relative directory to index. Defaults to \".\"."
+      "description": "Workspace-relative directory to index. Valid only for index; defaults to \".\"."
     },
     "timeoutMs": {
-      "type": "number",
-      "description": "Optional timeout in milliseconds, capped by plugin config."
+      "type": "integer",
+      "description": "Optional positive timeout in milliseconds, capped by plugin config."
     },
     "code_only": {
       "type": "boolean",
       "description": "For index only, pass --code-only. Defaults true to avoid LLM-backed document/media extraction."
     },
-    "no_viz": {
+    "no_cluster": {
       "type": "boolean",
-      "description": "For index only, pass --no-viz. Defaults true to avoid writing graph.html."
+      "description": "For index only, pass --no-cluster. Defaults true for a fast local-only initial graph."
     }
   },
   "required": [
@@ -1178,7 +1178,7 @@ Query the current workspace Graphify graph. Use query for broad questions, expla
     },
     "budget": {
       "type": "integer",
-      "description": "Approximate token budget for query output."
+      "description": "Positive approximate token budget for query output."
     },
     "dfs": {
       "type": "boolean",
@@ -1192,8 +1192,8 @@ Query the current workspace Graphify graph. Use query for broad questions, expla
       }
     },
     "timeoutMs": {
-      "type": "number",
-      "description": "Optional timeout in milliseconds, capped by plugin config."
+      "type": "integer",
+      "description": "Optional positive timeout in milliseconds, capped by plugin config."
     }
   },
   "required": [

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-02-opt-in-graphify-workspace-tools.md
-2026-09-02-opt-in-graphify-workspace-tools.md: 4ed81a36f3a5c9886fc0bfbc324711fac56ae2ca
-2026-09-02-opt-in-graphify-workspace-tools.zh.md: f2d753d8694fea8cb076c2f4ec0f1867b50382a9
+2026-09-02-opt-in-graphify-workspace-tools.md: c1946e02085f45b7c75bdfed2829c45c9843c12a
+2026-09-02-opt-in-graphify-workspace-tools.zh.md: ceb83d205ed7e69a0ebebfa14ef8134d1388735e

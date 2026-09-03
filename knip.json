@@ -718,6 +718,19 @@
         "tests/**/*.ts"
       ]
     },
+    "packages/graphify/tool-graphify": {
+      "entry": [
+        "tests/**/*.spec.ts",
+        "tests/fixtures/loader/driver.ts"
+      ],
+      "project": [
+        "src/**/*.ts",
+        "tests/**/*.ts"
+      ],
+      "ignoreDependencies": [
+        "@deepseek-ai/dsh-subprocess-local"
+      ]
+    },
     "packages/test-support/loader-smoke": {
       "entry": [
         "tests/**/*.spec.ts",

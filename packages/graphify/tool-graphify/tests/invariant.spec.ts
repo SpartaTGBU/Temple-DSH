@@ -67,6 +67,16 @@ describe('graphify invariants', () => {
     }).toThrow(/successful graphify_query result must carry stdout text/)
   })
 
+  it('rejects private collector spill paths', async () => {
+    const ctx = await setup()
+    expect(() => {
+      ctx.emit('tools/result', exec('graphify_query'), success({
+        ...okValue,
+        stdout: { text: 'NODE X', truncated: true, spillPath: 'host-private' },
+      }))
+    }).toThrow(/spillPath must not be exposed/)
+  })
+
   it('ignores failed and unrelated tool results', async () => {
     const ctx = await setup()
     expect(() => {

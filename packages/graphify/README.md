@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Graphify packages expose the external `graphify` CLI to agents through ordinary Harness plugin composition. The family is opt-in: no shipped base profile loads it by default, and each plugin keeps Graphify's Python package outside the Harness runtime.
+Graphify packages expose the external `graphify` CLI to agents through ordinary Harness plugin composition. The family is opt-in: no shipped base profile loads it by default, and each plugin keeps Graphify's Python package outside the Harness runtime. The model-facing registrations belong to the [tool subsystem](../../docs/subsystems/tools.md).
 
 ## Packages
 
