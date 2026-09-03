@@ -31,7 +31,7 @@ MemPalace 组包含消费 MemPalace 自有导出、但不成为 DSH memory provi
 <a id="related-documentation"></a>
 ## 相关文档
 
-- [能力 seam](../../docs/architecture.zh.md#capability-seams)——为什么此包是可选工具，而不是 loop patch 或存储提供方。
+- [能力 seam](../../docs/architecture.zh.md)——为什么此包是可选工具，而不是 loop patch 或存储提供方。
 - [生成的工具目录](../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-mempalace-multipass)——模型接收的 `mempalace_multipass_explore` schema。
 - [生成的配置目录](../../docs/config-catalog.zh.md#deepseek-aidsh-tool-mempalace-multipass)——每个受支持配置字段。
 - [MemPalace multipass graph seam Agent Note](../../.agents/notes/implemented/feature/2026-09-02-mempalace-multipass-graph-seam.zh.md)——集成决策及其备选方案。

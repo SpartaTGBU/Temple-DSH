@@ -31,7 +31,7 @@ The MemPalace group contains opt-in packages that consume MemPalace-owned export
 <a id="related-documentation"></a>
 ## Related documentation
 
-- [Capability seams](../../docs/architecture.md#capability-seams) — why the package is an opt-in tool rather than a loop patch or storage provider.
+- [Capability seams](../../docs/architecture.md) — why the package is an opt-in tool rather than a loop patch or storage provider.
 - [Generated tool catalog](../../docs/tool-catalog.md#deepseek-aidsh-tool-mempalace-multipass) — the `mempalace_multipass_explore` schema the model receives.
 - [Generated configuration catalog](../../docs/config-catalog.md#deepseek-aidsh-tool-mempalace-multipass) — every accepted config field.
 - [MemPalace multipass graph seam Agent Note](../../.agents/notes/implemented/feature/2026-09-02-mempalace-multipass-graph-seam.md) — the integration decision and alternatives.

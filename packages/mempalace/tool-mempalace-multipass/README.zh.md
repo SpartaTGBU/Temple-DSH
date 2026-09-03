@@ -89,7 +89,7 @@ kind: "package-reference"
 <a id="further-exploration"></a>
 ## 进一步探索
 
-- [能力 seam](../../../docs/architecture.zh.md#capability-seams)——为什么集成是可选 tool package，而不是 loop patch。
+- [能力 seam](../../../docs/architecture.zh.md)——为什么集成是可选 tool package，而不是 loop patch。
 - [Tool 编写参考](../../../docs/cookbook/adding-a-tool.zh.md)——tool schema、output 和 lifecycle contracts。
 - MemPalace `mempalace/palace_graph.py` — `build_graph()` 返回字段的上游来源。
 

@@ -89,7 +89,7 @@ The tool keeps MemPalace integration at the graph export seam. MemPalace owns mi
 <a id="further-exploration"></a>
 ## Further Exploration
 
-- [Capability seams](../../../docs/architecture.md#capability-seams) — why the integration is an opt-in tool package rather than a loop patch.
+- [Capability seams](../../../docs/architecture.md) — why the integration is an opt-in tool package rather than a loop patch.
 - [Tool authoring reference](../../../docs/cookbook/adding-a-tool.md) — tool schema, output, and lifecycle contracts.
 - MemPalace `mempalace/palace_graph.py` — upstream source for `build_graph()` return fields.
 
