@@ -28,7 +28,11 @@ export function validateGraphRequest(request: MemoryGraphRequest, limits: GraphL
   if (!Number.isSafeInteger(request.maxHops) || request.maxHops < 0 || request.maxHops > limits.maxHops) {
     throw new Error(`memory-mempalace: graph maxHops must be an integer from 0 to ${String(limits.maxHops)}`)
   }
-  if (request.startRoom !== undefined && (request.startRoom.trim() !== request.startRoom || request.startRoom.length === 0 || utf8(request.startRoom) > 128)) {
+  if (request.startRoom !== undefined && (
+    request.startRoom.trim() !== request.startRoom
+    || request.startRoom.length === 0
+    || utf8(request.startRoom) > 128
+  )) {
     throw new Error('memory-mempalace: graph startRoom must be a trimmed non-empty string of at most 128 UTF-8 bytes')
   }
 }
@@ -125,8 +129,9 @@ function parseVisit(value: unknown, nodes: ReadonlyMap<string, MemoryGraphNode>,
 }
 
 function validateEdgeTopology(edge: MemoryGraphEdge, nodes: ReadonlyMap<string, MemoryGraphNode>): void {
-  const source = nodes.get(edge.source)!
-  const target = nodes.get(edge.target)!
+  const source = nodes.get(edge.source)
+  const target = nodes.get(edge.target)
+  if (source === undefined || target === undefined) throw new Error('memory-mempalace: graph edge references an unknown node')
   if (edge.source === edge.target) throw new Error('memory-mempalace: graph edge cannot reference itself')
   const valid = edge.kind === 'placement'
     ? source.kind === 'wing' && target.kind === 'room'
@@ -136,7 +141,12 @@ function validateEdgeTopology(edge: MemoryGraphEdge, nodes: ReadonlyMap<string, 
   if (!valid) throw new Error(`memory-mempalace: graph ${edge.kind} edge has invalid endpoint kinds`)
 }
 
-function validateTraversal(visits: readonly MemoryGraphVisit[], nodes: ReadonlyMap<string, MemoryGraphNode>, startRoom: string | undefined, truncated: boolean): void {
+function validateTraversal(
+  visits: readonly MemoryGraphVisit[],
+  nodes: ReadonlyMap<string, MemoryGraphNode>,
+  startRoom: string | undefined,
+  truncated: boolean,
+): void {
   if (startRoom === undefined) {
     if (visits.length > 0) throw new Error('memory-mempalace: graph response contains visits without a startRoom')
     return
@@ -144,7 +154,14 @@ function validateTraversal(visits: readonly MemoryGraphVisit[], nodes: ReadonlyM
   if (visits.length === 0 && truncated) return
   const byNode = new Map(visits.map(visit => [visit.nodeId, visit]))
   const roots = visits.filter(visit => visit.hop === 0)
-  if (roots.length !== 1 || nodes.get(roots[0]!.nodeId)?.label !== startRoom || roots[0]!.parentNodeId !== undefined || roots[0]!.via.length !== 0) {
+  const root = roots[0]
+  if (
+    roots.length !== 1
+    || root === undefined
+    || nodes.get(root.nodeId)?.label !== startRoom
+    || root.parentNodeId !== undefined
+    || root.via.length !== 0
+  ) {
     throw new Error('memory-mempalace: graph traversal root does not match startRoom')
   }
   for (const visit of visits) {

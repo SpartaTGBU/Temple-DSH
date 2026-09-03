@@ -97,7 +97,12 @@ def build_bounded_graph(
                 })
         if edge_limit_reached:
             break
-        wings = sorted(rooms[room]["wings"])
+        # Only selected wings can produce an edge. Filtering before pairing
+        # prevents one hostile high-degree room from causing quadratic work.
+        wings = sorted(
+            wing for wing in rooms[room]["wings"]
+            if stable_id("wing", wing) in selected_ids
+        )
         for index, wing_a in enumerate(wings):
             for wing_b in wings[index + 1:]:
                 source, target = stable_id("wing", wing_a), stable_id("wing", wing_b)
@@ -119,31 +124,34 @@ def build_bounded_graph(
     if start_room is not None and stable_id("room", start_room) in selected_ids:
         visited = {start_room}
         frontier: list[tuple[str, int]] = [(start_room, 0)]
+        frontier_offset = 0
+        expanded_wings: set[str] = set()
         visits.append({"nodeId": stable_id("room", start_room), "hop": 0, "via": []})
-        while frontier:
-            current, depth = frontier.pop(0)
+        while frontier_offset < len(frontier):
+            current, depth = frontier[frontier_offset]
+            frontier_offset += 1
             if depth >= max_hops:
                 continue
-            current_wings = rooms[current]["wings"]
-            for room in sorted(rooms):
-                if room in visited or stable_id("room", room) not in selected_ids:
+            for wing in sorted(rooms[current]["wings"]):
+                if wing in expanded_wings:
                     continue
-                shared = sorted(current_wings & rooms[room]["wings"])
-                if not shared:
-                    continue
-                visited.add(room)
-                frontier.append((room, depth + 1))
-                visits.append({
-                    "nodeId": stable_id("room", room), "hop": depth + 1,
-                    "parentNodeId": stable_id("room", current), "via": shared,
-                })
-                if len(edges) < max_edges:
-                    edges.append({
-                        "id": stable_id("path", current, room), "source": stable_id("room", current),
-                        "target": stable_id("room", room), "kind": "path", "count": 1,
+                expanded_wings.add(wing)
+                for room in sorted(wing_rooms[wing]):
+                    if room in visited or stable_id("room", room) not in selected_ids:
+                        continue
+                    visited.add(room)
+                    frontier.append((room, depth + 1))
+                    visits.append({
+                        "nodeId": stable_id("room", room), "hop": depth + 1,
+                        "parentNodeId": stable_id("room", current), "via": [wing],
                     })
-                else:
-                    truncated = True
+                    if len(edges) < max_edges:
+                        edges.append({
+                            "id": stable_id("path", current, room), "source": stable_id("room", current),
+                            "target": stable_id("room", room), "kind": "path", "count": 1,
+                        })
+                    else:
+                        truncated = True
     edges.sort(key=lambda edge: edge["id"])
     visits.sort(key=lambda visit: (visit["hop"], visit["nodeId"]))
 
@@ -409,8 +417,15 @@ class Bridge:
         raise ValueError(f"unknown method: {method}")
 
 
-def emit(response: dict[str, Any]) -> None:
-    PROTOCOL_OUT.write(json.dumps(response, separators=(",", ":"), ensure_ascii=False) + "\n")
+def emit(response: dict[str, Any], max_frame_bytes: int) -> None:
+    encoded = json.dumps(response, separators=(",", ":"), ensure_ascii=False).encode("utf-8") + b"\n"
+    if len(encoded) > max_frame_bytes:
+        request_id = response.get("id", -1)
+        encoded = json.dumps(
+            {"id": request_id, "ok": False, "error": "response frame too large"},
+            separators=(",", ":"),
+        ).encode("utf-8") + b"\n"
+    PROTOCOL_OUT.buffer.write(encoded)
     PROTOCOL_OUT.flush()
 
 
@@ -433,7 +448,7 @@ def main() -> int:
     try:
         for raw in input_frames(bridge.args.max_frame_bytes):
             if raw is None:
-                emit({"id": -1, "ok": False, "error": "request frame too large"})
+                emit({"id": -1, "ok": False, "error": "request frame too large"}, bridge.args.max_frame_bytes)
                 continue
             request: Any = None
             try:
@@ -441,7 +456,7 @@ def main() -> int:
                 if not isinstance(request, dict):
                     raise ValueError("request must be an object")
                 request_id = request.get("id")
-                if not isinstance(request_id, int):
+                if isinstance(request_id, bool) or not isinstance(request_id, int):
                     raise ValueError("request id must be an integer")
                 method = request.get("method")
                 if not isinstance(method, str):
@@ -450,12 +465,15 @@ def main() -> int:
                 if not isinstance(payload, dict):
                     payload = {}
                 result, stop = bridge.dispatch(method, payload)
-                emit({"id": request_id, "ok": True, "result": result})
+                emit({"id": request_id, "ok": True, "result": result}, bridge.args.max_frame_bytes)
                 if stop:
                     return 0
             except Exception as exc:
                 request_id = request.get("id", -1) if isinstance(request, dict) else -1
-                emit({"id": request_id, "ok": False, "error": f"request failed ({type(exc).__name__})"})
+                emit(
+                    {"id": request_id, "ok": False, "error": f"request failed ({type(exc).__name__})"},
+                    bridge.args.max_frame_bytes,
+                )
     finally:
         bridge.close()
     return 0

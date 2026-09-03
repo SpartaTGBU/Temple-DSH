@@ -18,13 +18,14 @@ function mounted(overrides: ConstructorParameters<typeof MemPalaceMemory>[1] = {
   const ctx = new Context()
   contexts.push(ctx)
   new LocalSubprocessRuntime(ctx)
-  const memory = new MemPalaceMemory(ctx, {
+  const config: ConstructorParameters<typeof MemPalaceMemory>[1] = {
     pythonExecutable: process.execPath,
     bridgePath: fixture,
     requestTimeoutMs: 500,
     graceMs: 100,
-    ...overrides,
-  })
+  }
+  Object.assign(config, overrides)
+  const memory = new MemPalaceMemory(ctx, config)
   return { ctx, memory }
 }
 
@@ -41,6 +42,17 @@ describe('persistent worker', () => {
     expect(second.items).toEqual([])
     expect(second.truncated).toBe(true)
     expect(memory.status()).toEqual(expect.objectContaining({ state: 'ready', workerStarts: 1 }))
+  })
+
+  it('coalesces concurrent lazy startup behind one worker authority', async () => {
+    const { memory } = mounted()
+    const [first, second] = await Promise.all([
+      memory.recall({ sessionId: 's1', query: 'concurrent-one', limit: 1, maxBytes: 1000 }),
+      memory.recall({ sessionId: 's2', query: 'concurrent-two', limit: 1, maxBytes: 1000 }),
+    ])
+    expect(first.items[0]?.text).toBe('memory:concurrent-one')
+    expect(second.items[0]?.text).toBe('memory:concurrent-two')
+    expect(memory.status().workerStarts).toBe(1)
   })
 
   it('terminates a timed-out worker and restarts cleanly on the next call', async () => {

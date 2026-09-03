@@ -9,7 +9,7 @@ kind: "package-group"
 
 ## 概述
 
-`memory/` 组让 Temple-DSH 无需模型工具调用即可自动长期召回、捕获已完成轮次并执行 host 图探索。提供方无关服务使 agent 和 Dashboard 消费者独立于存储；MemPalace 提供方在一个受管 Python sidecar 中运行直接 MemPalace API。该能力为可选启用，且不使用 MCP。
+`memory/` 组让 Temple-DSH 无需模型工具调用即可自动长期召回、捕获已完成轮次并执行 host 图探索。提供方无关服务使生命周期策略和 host 图获取独立于存储；MemPalace 提供方在一个受管 Python sidecar 中运行直接 MemPalace API。该能力为可选启用，且不使用 MCP。
 
 ## 包
 

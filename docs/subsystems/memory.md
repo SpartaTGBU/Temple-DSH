@@ -16,7 +16,7 @@ Source: [`packages/memory/memory/src/index.ts`](../../packages/memory/memory/src
 
 ## Graph exploration
 
-`exploreGraph` is a trusted host operation over the configured provider. Its request contains an optional start room and strict node, edge, hop, and UTF-8 result-byte limits; it cannot contain graph data, paths, commands, executables, or provider configuration. The result contains renderer-neutral room/wing nodes, placement/tunnel/path edges, deterministic breadth-first visits, counts, and an explicit truncation flag. A Dashboard BFF endpoint can forward this DTO after authentication and bind request cancellation to the host signal without exposing MemPalace process or storage authority to the browser.
+`exploreGraph` is a trusted host operation over the configured provider. Its request contains an optional start room and strict node, edge, hop, and UTF-8 result-byte limits; it cannot contain graph data, paths, commands, executables, or provider configuration. The result contains renderer-neutral room/wing nodes, placement/tunnel/path edges, deterministic breadth-first visits, counts, and an explicit truncation flag. This package supplies no Dashboard endpoint or UI; a separate authenticated host consumer can forward the DTO and bind request cancellation without exposing MemPalace process or storage authority.
 
 ## Lifecycle and safety
 

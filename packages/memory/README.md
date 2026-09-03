@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The `memory/` group gives Temple-DSH automatic long-term recall, completed-turn capture, and host graph exploration without model tool calls. The provider-neutral service keeps agent and Dashboard consumers independent from storage; the MemPalace provider runs direct MemPalace APIs in one managed Python sidecar. The capability is opt-in and does not use MCP.
+The `memory/` group gives Temple-DSH automatic long-term recall, completed-turn capture, and host graph exploration without model tool calls. The provider-neutral service keeps lifecycle policy and host graph acquisition independent from storage; the MemPalace provider runs direct MemPalace APIs in one managed Python sidecar. The capability is opt-in and does not use MCP.
 
 ## Packages
 

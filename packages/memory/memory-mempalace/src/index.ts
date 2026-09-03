@@ -87,8 +87,11 @@ export class MemPalaceMemory extends MemoryRuntime {
   /** Schemastery configuration applied when the class is loaded as a plugin. */
   static Config = Config
   private handle: SubprocessHandle | undefined
-  private responseBuffer = Buffer.alloc(0)
+  private responseChunks: Buffer[] = []
+  private responseBytes = 0
   private starting: Promise<void> | undefined
+  private retiring: Promise<void> = Promise.resolve()
+  private retirementError: Error | undefined
   private nextId = 1
   private readonly pending = new Map<number, PendingRequest>()
   private readonly captures: MemoryCaptureTurn[] = []
@@ -147,7 +150,11 @@ export class MemPalaceMemory extends MemoryRuntime {
     return parseGraphResult(raw, request, this.config.maxGraphScanRecords ?? 10_000)
   }
 
-  async captureTurn(turn: MemoryCaptureTurn): Promise<void> {
+  captureTurn(turn: MemoryCaptureTurn): Promise<void> {
+    return Promise.resolve().then(() => { this.enqueueCapture(turn) })
+  }
+
+  private enqueueCapture(turn: MemoryCaptureTurn): void {
     this.assertPayloadFits('capture', turn)
     const max = this.config.maxPendingCaptures ?? 256
     if (this.captures.length + (this.activeCapture ? 1 : 0) >= max) {
@@ -206,6 +213,10 @@ export class MemPalaceMemory extends MemoryRuntime {
       const cleanup = (): void => { combined.removeEventListener('abort', onAbort) }
       this.pending.set(id, { resolve, reject, cleanup })
       combined.addEventListener('abort', onAbort, { once: true })
+      if (combined.aborted) {
+        onAbort()
+        return
+      }
       const frame = `${JSON.stringify({ id, method, payload })}\n`
       stdin.write(frame, 'utf8', (error) => {
         if (error !== null && error !== undefined) {
@@ -223,9 +234,20 @@ export class MemPalaceMemory extends MemoryRuntime {
 
   private async ensureStarted(): Promise<void> {
     if (this.handle !== undefined) return
-    if (this.starting !== undefined) return await this.starting
-    this.starting = this.startWorker().finally(() => { this.starting = undefined })
-    return await this.starting
+    if (this.starting !== undefined) {
+      await this.starting
+      return
+    }
+    if (this.stopping) throw new Error('memory-mempalace: provider is stopping')
+    this.starting = this.startWorkerAfterRetirement().finally(() => { this.starting = undefined })
+    await this.starting
+  }
+
+  private async startWorkerAfterRetirement(): Promise<void> {
+    await this.retiring
+    if (this.retirementError !== undefined) throw this.retirementError
+    if (this.stopping) throw new Error('memory-mempalace: provider is stopping')
+    await this.startWorker()
   }
 
   private async startWorker(): Promise<void> {
@@ -247,23 +269,28 @@ export class MemPalaceMemory extends MemoryRuntime {
         stdio: { stdin: 'pipe', stdout: 'pipe', stderr: { maxBytes: 8192 } },
         graceMs: this.config.graceMs ?? 2000,
       })
-      if (handle.stdin === undefined || handle.stdout === undefined) throw new Error('worker pipes unavailable')
+      if (handle.stdin === undefined || handle.stdout === undefined) {
+        handle.terminate()
+        await handle.waitForExit()
+        throw new Error('worker pipes unavailable')
+      }
       this.handle = handle
       this.workerStarts += 1
-      this.responseBuffer = Buffer.alloc(0)
+      this.responseChunks = []
+      this.responseBytes = 0
       handle.stdout.on('data', (chunk: Buffer | string) => {
         if (this.handle === handle) this.onData(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
       })
-      handle.stdin.on('error', error => {
+      handle.stdin.on('error', (error) => {
         if (this.handle === handle) this.failWorker(new Error(`memory-mempalace: worker stdin failed: ${error.message}`), handle)
       })
       void handle.done.then(
-        outcome => {
+        (outcome) => {
           if (this.handle === handle && !this.stopping) {
             this.failWorker(new Error(`memory-mempalace: worker exited (${String(outcome.exitCode)})`))
           }
         },
-        error => {
+        (error: unknown) => {
           if (this.handle === handle) this.failWorker(new Error(`memory-mempalace: worker failed: ${safeMessage(error)}`))
         },
       )
@@ -312,15 +339,19 @@ export class MemPalaceMemory extends MemoryRuntime {
       const newline = chunk.indexOf(0x0A, offset)
       const end = newline < 0 ? chunk.byteLength : newline
       const segment = chunk.subarray(offset, end)
-      const bufferedBytes = this.responseBuffer.byteLength + segment.byteLength
+      const bufferedBytes = this.responseBytes + segment.byteLength
       if (bufferedBytes > maximum || (newline >= 0 && bufferedBytes >= maximum)) {
         this.failWorker(new Error('memory-mempalace: worker response exceeded maxFrameBytes'))
         return
       }
-      if (segment.byteLength > 0) this.responseBuffer = Buffer.concat([this.responseBuffer, segment])
+      if (segment.byteLength > 0) {
+        this.responseChunks.push(segment)
+        this.responseBytes = bufferedBytes
+      }
       if (newline < 0) return
-      const line = this.responseBuffer.toString('utf8')
-      this.responseBuffer = Buffer.alloc(0)
+      const line = Buffer.concat(this.responseChunks, this.responseBytes).toString('utf8')
+      this.responseChunks = []
+      this.responseBytes = 0
       this.onLine(line)
       if (this.handle === undefined) return
       offset = newline + 1
@@ -331,7 +362,8 @@ export class MemPalaceMemory extends MemoryRuntime {
     if (expected !== undefined && this.handle !== expected) return
     const handle = this.handle
     this.handle = undefined
-    this.responseBuffer = Buffer.alloc(0)
+    this.responseChunks = []
+    this.responseBytes = 0
     if (!this.stopping) {
       this.state = 'degraded'
       this.detail = error.message
@@ -341,13 +373,24 @@ export class MemPalaceMemory extends MemoryRuntime {
       pending.reject(error)
     }
     this.pending.clear()
-    handle?.terminate()
+    if (handle !== undefined) {
+      handle.terminate()
+      this.retirementError = undefined
+      this.retiring = handle.waitForExit().then((exited) => {
+        if (!exited) throw new Error('memory-mempalace: worker tree did not terminate')
+      }).catch((error: unknown) => {
+        this.retirementError = new Error(`memory-mempalace: worker teardown failed: ${safeMessage(error)}`)
+        this.state = 'unavailable'
+        this.detail = this.retirementError.message
+      })
+    }
   }
 
   private async shutdown(): Promise<void> {
     if (this.stopping) return
     this.stopping = true
     try {
+      try { await this.starting } catch { /* startup failure leaves no live worker */ }
       await this.flush()
       if (this.handle !== undefined) {
         try { await this.request('shutdown', {}) } catch { /* worker failure is completed by forced termination below */ }
@@ -355,11 +398,13 @@ export class MemPalaceMemory extends MemoryRuntime {
     } finally {
       const handle = this.handle
       this.handle = undefined
-      this.responseBuffer = Buffer.alloc(0)
+      this.responseChunks = []
+      this.responseBytes = 0
       handle?.terminate()
       if (handle !== undefined) {
-        await handle.waitForExit(AbortSignal.timeout((this.config.graceMs ?? 2000) * 2))
+        await handle.waitForExit()
       }
+      await this.retiring
       this.state = 'stopped'
       this.detail = 'provider disposed'
       this.stopping = false

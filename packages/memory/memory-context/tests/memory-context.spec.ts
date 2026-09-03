@@ -60,9 +60,12 @@ describe('automatic recall', () => {
     expect(memory.recalls).toHaveLength(1)
     expect(first.kind).toBe('enter')
     if (first.kind !== 'enter') throw new Error('expected enter')
-    const recalled = first.messages.at(-1)!
+    const recalled = first.messages.at(-1)
+    if (recalled === undefined) throw new Error('expected recalled message')
     expect(recalled.source).toEqual(expect.objectContaining({ kind: 'plugin', plugin: 'memory-context', form: 'snapshot' }))
-    expect(recalled.content[0]).toEqual(expect.objectContaining({ type: 'text', text: expect.stringContaining('untrusted background') }))
+    const recalledText = recalled.content[0]
+    expect(recalledText?.type).toBe('text')
+    if (recalledText?.type === 'text') expect(recalledText.text).toContain('untrusted background')
     expect(JSON.stringify(recalled)).toContain('[identity/preferences] prefers concise answers')
     expect(second.kind).toBe('enter')
   })
@@ -72,7 +75,9 @@ describe('automatic recall', () => {
     expect(new TextEncoder().encode(rendered).byteLength).toBeLessThanOrEqual(300)
     const { ctx, memory, session } = mounted()
     memory.recallImpl = (_request, signal) => new Promise((_resolve, reject) => {
-      signal?.addEventListener('abort', () => { reject(signal.reason) }, { once: true })
+      signal?.addEventListener('abort', () => {
+        reject(signal.reason instanceof Error ? signal.reason : new Error('recall aborted'))
+      }, { once: true })
     })
     const decision = await preStep(ctx, testAgent(session), 1, 1)
     expect(decision.kind).toBe('enter')

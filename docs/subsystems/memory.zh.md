@@ -16,7 +16,7 @@
 
 ## 图探索
 
-`exploreGraph` 是针对已配置提供方的可信 host 操作。其请求包含可选起始 room，以及严格的节点、边、跳数和 UTF-8 结果字节上限；不能包含图数据、路径、命令、可执行文件或提供方配置。结果包含与 renderer 无关的 room/wing 节点、placement/tunnel/path 边、确定性广度优先访问、计数和明确的截断标记。Dashboard BFF endpoint 可在认证后转发此 DTO，并把请求取消绑定到 host signal，而不向浏览器暴露 MemPalace 进程或存储权限。
+`exploreGraph` 是针对已配置提供方的可信 host 操作。其请求包含可选起始 room，以及严格的节点、边、跳数和 UTF-8 结果字节上限；不能包含图数据、路径、命令、可执行文件或提供方配置。结果包含与 renderer 无关的 room/wing 节点、placement/tunnel/path 边、确定性广度优先访问、计数和明确的截断标记。此包不提供 Dashboard endpoint 或 UI；独立且经过认证的 host 消费者可以转发 DTO 并绑定请求取消，而不暴露 MemPalace 进程或存储权限。
 
 ## 生命周期和安全
 
