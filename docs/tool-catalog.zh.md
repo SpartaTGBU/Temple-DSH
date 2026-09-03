@@ -44,6 +44,7 @@
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`、`interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-mempalace-multipass` | `mempalace_multipass_explore` | `ctx.tools`、`MemPalace build_graph-compatible JSON supplied directly or from a local file` | `tool/call`、`tool/result` | - | mempalace_multipass_explore 读取直接 JSON 或有边界的本地 JSON 文件，且绝不执行 MemPalace、Python、shell commands 或 browser code。 |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -2234,6 +2235,41 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 ```
 
 来源：[`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-mempalace-multipass"></a>
+
+## `@deepseek-ai/dsh-tool-mempalace-multipass`
+
+### `mempalace_multipass_explore`
+
+归一化 MemPalace build_graph 兼容 JSON，并探索通过 shared wings 连接的 room-to-room paths。必须且只能提供 graph_json（包含 nodes/edges 的 object 或 [nodes, edges] array）或 graph_json_path（已经在 DSH 外部生成的本地 JSON 文件）之一。此工具不会执行 MemPalace 或任意代码。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "graph_json": {
+      "description": "MemPalace build_graph-compatible JSON: either {nodes, edges} or [nodes, edges]."
+    },
+    "graph_json_path": {
+      "type": "string",
+      "description": "Local path to a JSON file containing MemPalace build_graph-compatible JSON."
+    },
+    "start_room": {
+      "type": "string",
+      "description": "Optional room to use as the multi-hop exploration start."
+    },
+    "max_hops": {
+      "type": "integer",
+      "description": "Optional BFS hop depth. Defaults to 2."
+    }
+  }
+}
+```
+
+来源：[`packages/mempalace/tool-mempalace-multipass/src/index.ts`](../packages/mempalace/tool-mempalace-multipass/src/index.ts)
+
+mempalace_multipass_explore 读取直接 JSON 或有边界的本地 JSON 文件，且绝不执行 MemPalace、Python、shell commands 或 browser code。
 
 <a id="deepseek-aidsh-tool-web"></a>
 

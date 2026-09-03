@@ -46,6 +46,7 @@ Every package lives in exactly one group; new packages join existing groups, and
 | [`lsp/`](lsp/README.md) | LSP capability family: seam, generic stdio provider, and the `lsp` tool |
 | [`skill/`](skill/README.md) | Skill capability family: provider registry, local provider, model-facing catalog/loader |
 | [`memory/`](memory/README.md) | Automatic long-term-memory service, lifecycle recall/capture, and native MemPalace provider |
+| [`mempalace/`](mempalace/README.md) | MemPalace export adapters: opt-in graph exploration over MemPalace-owned palace data |
 | [`compaction/`](compaction/README.md) | Compaction capability family: Service Definition + basic provider + command Consumer |
 | [`context/`](context/README.md) | Model-visible request context: workspace instructions, time context, references |
 | [`subagent/`](subagent/README.md) | Subagent capability family: provider-registry contract and model-facing delegation tools |
