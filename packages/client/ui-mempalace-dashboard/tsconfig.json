@@ -1,0 +1,25 @@
+{
+  "extends": "../../../tsconfig.base.client.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.tsbuildinfo"
+  },
+  "files": [
+    "src/index.ts",
+    "src/invariant.ts",
+    "src/client/index.ts",
+    "src/client/locales.ts",
+    "src/client/MemPalaceDashboardSection.tsx"
+  ],
+  "references": [
+    { "path": "../../../vendor/cordis" },
+    { "path": "../connection/tsconfig.client.json" },
+    { "path": "../locale" },
+    { "path": "../ui-renderer" },
+    { "path": "../ui-settings" },
+    { "path": "../ui-slots" },
+    { "path": "../../api/mempalace-dashboard" },
+    { "path": "../../runtime-diagnostics/invariants" }
+  ]
+}

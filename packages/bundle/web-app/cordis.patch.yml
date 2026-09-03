@@ -95,6 +95,13 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
+    # Opt-in read-only MemPalace inspection API. Disabled by default because
+    # palace contents are sensitive and the row may read an external memory
+    # store configured outside dsh.
+    - id: mempalace-dashboard
+      name: '@deepseek-ai/dsh-api-mempalace-dashboard'
+      disabled: true
+
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
@@ -292,6 +299,11 @@
 
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
+
+    # Optional Settings section for the MemPalace dashboard API above.
+    - id: ui-mempalace-dashboard
+      name: '@deepseek-ai/dsh-client-ui-mempalace-dashboard'
+      disabled: true
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
