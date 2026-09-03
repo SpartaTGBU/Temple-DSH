@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
 import type { ConnectionRpcResult, HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
 import { buildMemPalaceDashboard, type MemPalaceProjectionOptions } from './projection.ts'
-import type { MemPalaceDashboardRequest, MemPalaceDashboardSnapshot } from './types.ts'
+import { MEMPALACE_DASHBOARD_ENDPOINT, type MemPalaceDashboardRequest, type MemPalaceDashboardSnapshot } from './types.ts'
 
 export type * from './types.ts'
 export { buildMemPalaceDashboard, normalizeRequest } from './projection.ts'
@@ -34,8 +34,6 @@ export const Config: Schema<Config> = Schema.object({
   defaultLimit: Schema.number().step(1).min(1).max(100).default(25),
 })
 
-/** Logical endpoint inside the shared `/api` RPC channel. */
-export const MEMPALACE_DASHBOARD_ENDPOINT = 'mempalaceDashboard/inspect'
 
 /**
  * Register the authenticated read-only dashboard RPC endpoint.

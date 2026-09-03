@@ -2,8 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
-import type { MemPalaceDashboardRequest, MemPalaceDashboardSnapshot } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
-import { MEMPALACE_DASHBOARD_ENDPOINT } from '@deepseek-ai/dsh-api-mempalace-dashboard'
+import { MEMPALACE_DASHBOARD_ENDPOINT, type MemPalaceDashboardRequest, type MemPalaceDashboardSnapshot } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'

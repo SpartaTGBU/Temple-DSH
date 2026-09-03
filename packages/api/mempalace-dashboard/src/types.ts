@@ -1,5 +1,8 @@
 /** Browser-safe MemPalace dashboard projection values. */
 
+/** Logical endpoint inside the shared `/api` RPC channel. */
+export const MEMPALACE_DASHBOARD_ENDPOINT = 'mempalaceDashboard/inspect'
+
 /** Why one requested MemPalace view cannot be answered from persisted state. */
 export type MemPalaceUnavailableReason =
   | 'palace-not-found'

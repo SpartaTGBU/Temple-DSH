@@ -32,13 +32,15 @@
   "dsh": {
     "client": {
       "inject": [
-        "@deepseek-ai/dsh-api-mempalace-dashboard",
         "@deepseek-ai/dsh-client-connection",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-ui-settings"
       ],
-      "platform": "web"
+      "platform": "web",
+      "external": [
+        "@deepseek-ai/dsh-api-mempalace-dashboard/types"
+      ]
     }
   },
   "scripts": {
