@@ -67,6 +67,32 @@ function seedKnowledgeGraph(home: string): void {
   db.close()
 }
 
+function seedChroma(palacePath: string): void {
+  mkdirSync(palacePath, { recursive: true })
+  const db = new DatabaseSync(join(palacePath, 'chroma.sqlite3'))
+  db.exec(`
+    CREATE TABLE collections (id TEXT PRIMARY KEY, name TEXT NOT NULL);
+    CREATE TABLE segments (id TEXT PRIMARY KEY, scope TEXT NOT NULL, collection TEXT NOT NULL);
+    CREATE TABLE embeddings (id INTEGER PRIMARY KEY, segment_id TEXT NOT NULL, embedding_id TEXT NOT NULL);
+    CREATE TABLE embedding_metadata (
+      id INTEGER NOT NULL, key TEXT NOT NULL, string_value TEXT,
+      int_value INTEGER, float_value REAL, bool_value INTEGER,
+      PRIMARY KEY (id, key)
+    );
+    INSERT INTO collections VALUES ('collection-1', 'mempalace_drawers');
+    INSERT INTO segments VALUES ('segment-1', 'METADATA', 'collection-1');
+    INSERT INTO embeddings VALUES (1, 'segment-1', 'chroma-drawer');
+    INSERT INTO embedding_metadata (id, key, string_value) VALUES
+      (1, 'wing', 'wing_chroma'),
+      (1, 'room', 'room_chroma'),
+      (1, 'hall', 'technical'),
+      (1, 'source_file', 'chroma.md'),
+      (1, 'date', '2026-09-03'),
+      (1, 'chroma:document', 'isolated chroma inspection');
+  `)
+  db.close()
+}
+
 describe('MemPalace dashboard projection', () => {
   it('normalizes blank filters and clamps limits', () => {
     expect(normalizeRequest({ wing: '  ', room: ' room ', query: ' alpha ', limit: 500 })).toEqual({
@@ -124,6 +150,33 @@ describe('MemPalace dashboard projection', () => {
     if (!snapshot.health.available) throw new Error(snapshot.health.message)
     expect(snapshot.health.value.unavailableSignals.map(signal => signal.reason)).toEqual(['memory-health-not-persisted'])
     expect(snapshot.retrievalTransparency).toMatchObject({ available: false, reason: 'retrieval-traces-not-persisted' })
+  })
+
+  it('projects the persisted Chroma metadata layout through read-only SQL', () => {
+    const home = root()
+    const palacePath = join(home, 'palace')
+    seedChroma(palacePath)
+    const snapshot = buildMemPalaceDashboard({ query: 'isolated', limit: 3 }, {
+      source: {
+        kind: 'mempalace',
+        palacePath,
+        collectionName: 'mempalace_drawers',
+        storageBackend: 'chroma',
+        wing: 'wing_chroma',
+      },
+    })
+    expect(snapshot.structure.available).toBe(true)
+    if (!snapshot.structure.available) throw new Error(snapshot.structure.message)
+    expect(snapshot.structure.value).toMatchObject({ drawerCount: 1, wingCount: 1, roomCount: 1 })
+    expect(snapshot.structure.value.drawers).toEqual([{
+      id: 'chroma-drawer',
+      wing: 'wing_chroma',
+      room: 'room_chroma',
+      hall: 'technical',
+      sourceFile: 'chroma.md',
+      date: '2026-09-03',
+      preview: 'isolated chroma inspection',
+    }])
   })
 
   it('reports explicit unavailable states instead of fabricating missing data', () => {
