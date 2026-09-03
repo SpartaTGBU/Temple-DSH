@@ -2,7 +2,7 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { ClientConnectionRpc } from '@deepseek-ai/dsh-client-connection/client'
-import { MEMPALACE_DASHBOARD_ENDPOINT, type MemPalaceDashboardRequest, type MemPalaceDashboardSnapshot } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
+import type { MemPalaceDashboardRequest, MemPalaceDashboardSnapshot } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
@@ -14,6 +14,7 @@ export type { MemPalaceDashboardKey } from './locales.ts'
 
 /** Dictionary namespace owned by this plugin. */
 export const NS = 'mempalaceDashboard'
+const ENDPOINT = 'mempalaceDashboard/inspect'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -35,7 +36,7 @@ export function apply(ctx: Context): void {
   const connection = ctx.get('connection') as { readonly rpc: ClientConnectionRpc }
   const injected = (): MemPalaceDashboardSectionInjected => ({
     inspect: async (request: MemPalaceDashboardRequest) => {
-      const result = await connection.rpc.call('/api', MEMPALACE_DASHBOARD_ENDPOINT, request)
+      const result = await connection.rpc.call('/api', ENDPOINT, request)
       if (!result.ok) throw new Error(`mempalaceDashboard.inspect failed: ${result.error.code}: ${result.error.message}`)
       return result.value as MemPalaceDashboardSnapshot
     },

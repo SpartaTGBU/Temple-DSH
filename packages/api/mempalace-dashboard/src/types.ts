@@ -5,12 +5,16 @@ export const MEMPALACE_DASHBOARD_ENDPOINT = 'mempalaceDashboard/inspect'
 
 /** Why one requested MemPalace view cannot be answered from persisted state. */
 export type MemPalaceUnavailableReason =
+  | 'memory-provider-not-found'
+  | 'memory-provider-unsupported'
+  | 'memory-provider-unavailable'
   | 'palace-not-found'
   | 'drawer-index-not-found'
   | 'unsupported-backend'
   | 'sqlite-read-failed'
   | 'knowledge-graph-not-found'
   | 'tunnels-not-found'
+  | 'sidecar-read-failed'
   | 'retrieval-traces-not-persisted'
   | 'memory-health-not-persisted'
 
@@ -41,9 +45,18 @@ export interface MemPalaceDashboardRequest {
 /** Resolved local MemPalace location, without secrets. */
 export interface MemPalaceLocationView {
   readonly palacePath: string
-  readonly configPath: string
   readonly collectionName: string
   readonly backend: string
+  readonly wing: string
+  readonly authority: 'memory-provider' | 'standalone-projection'
+}
+
+/** Safe operational facts copied from `ctx.memory.status()`. */
+export interface MemPalaceProviderStatusView {
+  readonly state: 'ready' | 'starting' | 'degraded' | 'unavailable' | 'stopped'
+  readonly backend: string
+  readonly pendingCaptures: number
+  readonly workerStarts: number
 }
 
 /** Drawer row used by inspection and maintenance views. */
@@ -137,7 +150,8 @@ export interface MemPalaceRetrievalTransparencyView {
 /** Complete dashboard snapshot returned by the Host API. */
 export interface MemPalaceDashboardSnapshot {
   readonly generatedAt: string
-  readonly location: MemPalaceLocationView
+  readonly provider: MemPalaceSection<MemPalaceProviderStatusView>
+  readonly location: MemPalaceSection<MemPalaceLocationView>
   readonly filters: Required<Pick<MemPalaceDashboardRequest, 'limit'>> & Omit<MemPalaceDashboardRequest, 'limit'>
   readonly structure: MemPalaceSection<MemPalaceStructureView>
   readonly knowledgeGraph: MemPalaceSection<MemPalaceKnowledgeGraphView>

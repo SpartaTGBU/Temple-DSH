@@ -36,6 +36,7 @@
   "files": [
     "lib/index.js",
     "lib/invariant.js",
+    "lib/projection-worker.js",
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts"
   ],
@@ -43,12 +44,14 @@
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-memory": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "workspace:^",
     "@deepseek-ai/dsh-client-connection": "workspace:^",
+    "@deepseek-ai/dsh-memory": "workspace:^",
     "@deepseek-ai/dsh-invariants": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   }

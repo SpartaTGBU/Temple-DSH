@@ -31,6 +31,18 @@ function turn(userText = 'hello'): MemoryCaptureTurn {
 }
 
 describe('persistent worker', () => {
+  it('resolves inspection coordinates through the provider worker without exposing configuration internals', async () => {
+    const { memory } = mounted()
+    await expect(memory.inspectionSource()).resolves.toEqual({
+      kind: 'mempalace',
+      palacePath: 'C:/fixture/palace',
+      collectionName: 'fixture_collection',
+      storageBackend: 'sqlite_exact',
+      wing: 'wing_fixture',
+    })
+    expect(memory.status()).toEqual(expect.objectContaining({ state: 'ready', workerStarts: 1 }))
+  })
+
   it('reuses one process across recalls and bounds returned bytes', async () => {
     const { memory } = mounted()
     const first = await memory.recall({ sessionId: 's1', query: 'one', limit: 3, maxBytes: 1000 })

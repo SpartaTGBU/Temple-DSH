@@ -99,6 +99,11 @@ describe('MemPalace dashboard projection', () => {
       env: {},
     })
 
+    expect(snapshot.provider).toMatchObject({ available: false, reason: 'memory-provider-unsupported' })
+    expect(snapshot.location).toMatchObject({
+      available: true,
+      value: { palacePath, backend: 'sqlite_exact', wing: 'wing_general', authority: 'standalone-projection' },
+    })
     expect(snapshot.structure.available).toBe(true)
     if (!snapshot.structure.available) throw new Error(snapshot.structure.message)
     expect(snapshot.structure.value.wings).toEqual([
@@ -134,5 +139,45 @@ describe('MemPalace dashboard projection', () => {
     })
     expect(unsupported.structure).toMatchObject({ available: false, reason: 'unsupported-backend' })
     expect(unsupported.knowledgeGraph).toMatchObject({ available: false, reason: 'knowledge-graph-not-found' })
+  })
+
+  it('uses provider-resolved storage coordinates instead of divergent environment and file values', () => {
+    const home = root()
+    const palacePath = join(home, 'provider-palace')
+    seedSqliteExact(palacePath)
+    const snapshot = buildMemPalaceDashboard({}, {
+      home,
+      palacePath: join(home, 'wrong-option'),
+      env: { MEMPALACE_PALACE_PATH: join(home, 'wrong-env'), MEMPALACE_BACKEND: 'qdrant' },
+      source: {
+        kind: 'mempalace',
+        palacePath,
+        collectionName: 'mempalace_drawers',
+        storageBackend: 'sqlite_exact',
+        wing: 'wing_native',
+      },
+      providerStatus: {
+        state: 'degraded',
+        backend: 'mempalace',
+        detail: 'must not be projected',
+        pendingCaptures: 4,
+        workerStarts: 2,
+      },
+    })
+    expect(snapshot.location).toEqual({
+      available: true,
+      value: {
+        palacePath,
+        collectionName: 'mempalace_drawers',
+        backend: 'sqlite_exact',
+        wing: 'wing_native',
+        authority: 'memory-provider',
+      },
+    })
+    expect(snapshot.provider).toEqual({
+      available: true,
+      value: { state: 'degraded', backend: 'mempalace', pendingCaptures: 4, workerStarts: 2 },
+    })
+    expect(JSON.stringify(snapshot)).not.toContain('must not be projected')
   })
 })

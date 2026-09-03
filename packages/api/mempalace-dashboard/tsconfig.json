@@ -9,12 +9,15 @@
     "src/index.ts",
     "src/invariant.ts",
     "src/projection.ts",
+    "src/projection-worker.ts",
+    "src/worker-client.ts",
     "src/types.ts"
   ],
   "references": [
     { "path": "../../../vendor/cordis" },
     { "path": "../../../vendor/schemastery" },
     { "path": "../../client/connection/tsconfig.host.json" },
+    { "path": "../../memory/memory" },
     { "path": "../../runtime-diagnostics/invariants" }
   ]
 }

@@ -6,7 +6,7 @@ import { createInterface } from 'node:readline'
 import type { Interface as ReadLineInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { MemoryRuntime } from '@deepseek-ai/dsh-memory'
-import type { MemoryCaptureTurn, MemoryRecallItem, MemoryRecallRequest, MemoryRecallResult, MemoryStatus } from '@deepseek-ai/dsh-memory'
+import type { MemoryCaptureTurn, MemoryInspectionSource, MemoryRecallItem, MemoryRecallRequest, MemoryRecallResult, MemoryStatus } from '@deepseek-ai/dsh-memory'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-subprocess'
 
@@ -97,6 +97,26 @@ export class MemPalaceMemory extends MemoryRuntime {
       detail: this.detail,
       pendingCaptures: this.captures.length + (this.activeCapture ? 1 : 0),
       workerStarts: this.workerStarts,
+    }
+  }
+
+  override async inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource> {
+    const record = asRecord(await this.request('configuration', {}, signal))
+    if (
+      record?.kind !== 'mempalace'
+      || typeof record.palacePath !== 'string'
+      || typeof record.collectionName !== 'string'
+      || typeof record.storageBackend !== 'string'
+      || typeof record.wing !== 'string'
+    ) {
+      throw new Error('memory-mempalace: worker emitted invalid inspection configuration')
+    }
+    return {
+      kind: 'mempalace',
+      palacePath: record.palacePath,
+      collectionName: record.collectionName,
+      storageBackend: record.storageBackend,
+      wing: record.wing,
     }
   }
 

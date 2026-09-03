@@ -12,11 +12,11 @@ Retrieval transparency has a separate gap: MemPalace search can return candidate
 
 ## Decision
 
-`@deepseek-ai/dsh-api-mempalace-dashboard` is the Host owner of the read-only projection. It resolves MemPalace's local config and environment path conventions, opens the local `chroma` or `sqlite_exact` drawer database read-only, projects wing, room, drawer, passive-tunnel, explicit-tunnel, KG timeline, and count health views, and returns explicit unavailable states for unsupported backends, missing sidecars, missing KG files, unavailable maintenance scans, and absent retrieval traces.
+`@deepseek-ai/dsh-api-mempalace-dashboard` is the Host owner of the read-only projection. It asks `ctx.memory` for provider-resolved palace, collection, storage backend, and wing coordinates, then opens the local `chroma` or `sqlite_exact` drawer database read-only in a bounded one-shot worker. It projects wing, room, drawer, passive-tunnel, explicit-tunnel, KG timeline, count health, and safe provider status views, and returns explicit unavailable states for missing or degraded providers, unsupported backends, missing sidecars, missing KG files, unavailable maintenance scans, and absent retrieval traces.
 
-`@deepseek-ai/dsh-client-ui-mempalace-dashboard` is the browser consumer. It registers one Settings section, calls the authenticated shared `/api` endpoint, and renders the Host snapshot without direct filesystem access. Both Web bundle rows are disabled by default; a deployment enables the Host row and browser row together when exposing local memory inspection is intended.
+`@deepseek-ai/dsh-client-ui-mempalace-dashboard` is the browser consumer. It registers one Settings section, calls the authenticated shared `/api` endpoint, and renders the Host snapshot without direct filesystem access. `MEMPALACE_ENABLED=1` enables the native provider, automatic consumer, Host API, and browser row together; every other value leaves all four rows disabled.
 
-The projection reads files only. SQLite handles use `readOnly` and `PRAGMA query_only`; the adapter never shells out to the MemPalace CLI, never imports the read-only upstream clone, and does not edit MemPalace config or data. The endpoint remains behind the existing Connection Host/Origin checks and browser authentication.
+The projection reads files only. SQLite handles use `readOnly` and `PRAGMA query_only`; aggregate and detail results and sidecar bytes are bounded. The native provider resolves configuration through its managed bridge without opening a collection, while storage inspection stays in a disposable worker thread. The endpoint remains behind the existing Connection Host/Origin checks and browser authentication.
 
 ## Alternatives considered
 

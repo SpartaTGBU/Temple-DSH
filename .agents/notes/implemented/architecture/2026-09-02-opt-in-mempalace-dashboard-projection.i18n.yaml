@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-02-opt-in-mempalace-dashboard-projection.md
-2026-09-02-opt-in-mempalace-dashboard-projection.md: 5ff9aa29d0983ecfd64d03a1aafccde51790de8a
-2026-09-02-opt-in-mempalace-dashboard-projection.zh.md: 653b4a5078d16ee5c3c95a3ab82a81238ede91e3
+2026-09-02-opt-in-mempalace-dashboard-projection.md: 808903e19d622233b3f14b3645eb3da0f892a5f8
+2026-09-02-opt-in-mempalace-dashboard-projection.zh.md: f739ba60fc5e8a4c7e7aa8f551fc3530741c5743

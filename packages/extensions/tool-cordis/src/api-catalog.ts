@@ -1211,6 +1211,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the current backend state and queue counters.',
       },
       {
+        signature: 'async inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>',
+        description: 'Resolve non-secret storage coordinates through the provider\'s own configuration path. Providers that do not support local inspection return `undefined`.',
+        parameters: [{ name: 'signal', description: 'optional cancellation for provider-side resolution.' }],
+        returns: 'a read-only inspection source, or `undefined` when unsupported.',
+      },
+      {
         signature: 'abstract recall(request: MemoryRecallRequest, signal?: AbortSignal): Promise<MemoryRecallResult>',
         description: 'Recall bounded background information for one turn.',
         parameters: [{ name: 'request', description: 'session, query, item limit, and byte limit.' }, { name: 'signal', description: 'optional cancellation for this recall.' }],
@@ -4485,6 +4491,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MemoryCaptureTurn',
     declaration: 'export interface MemoryCaptureTurn {\n    readonly sessionId: string;\n    readonly turn: number;\n    readonly userText: string;\n    readonly assistantText: string;\n    readonly completedAt: number;\n    readonly cwd?: string;\n}',
+  },
+  {
+    name: 'MemoryInspectionSource',
+    declaration: 'export interface MemoryInspectionSource {\n    readonly kind: \'mempalace\';\n    readonly palacePath: string;\n    readonly collectionName: string;\n    readonly storageBackend: string;\n    readonly wing: string;\n}',
   },
   {
     name: 'MemoryPressureLevel',

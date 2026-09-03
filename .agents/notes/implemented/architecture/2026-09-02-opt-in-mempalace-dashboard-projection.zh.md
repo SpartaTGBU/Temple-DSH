@@ -12,11 +12,11 @@ MemPalace 把用户记忆存为翼区、房间、抽屉、隧道、日记派生�
 
 ## Decision
 
-`@deepseek-ai/dsh-api-mempalace-dashboard` 是只读投影的宿主拥有者。它解析 MemPalace 的本地配置与环境变量路径约定，以只读方式打开本地 `chroma` 或 `sqlite_exact` 抽屉数据库，投影翼区、房间、抽屉、被动隧道、显式隧道、KG 时间线和计数健康视图，并对不支持的后端、缺失 sidecar、缺失 KG 文件、不可用维护扫描和不存在的检索 trace 返回明确不可用状态。
+`@deepseek-ai/dsh-api-mempalace-dashboard` 是只读投影的宿主拥有者。它向 `ctx.memory` 请求由提供方解析的 palace、collection、存储后端与 wing 坐标，然后在有界的一次性 worker 中以只读方式打开本地 `chroma` 或 `sqlite_exact` 抽屉数据库。它投影翼区、房间、抽屉、被动隧道、显式隧道、KG 时间线、计数健康与安全提供方状态视图，并对缺失或降级提供方、不支持的后端、缺失 sidecar、缺失 KG 文件、不可用维护扫描和不存在的检索 trace 返回明确不可用状态。
 
-`@deepseek-ai/dsh-client-ui-mempalace-dashboard` 是浏览器消费者。它注册一个 Settings 分区，调用已认证的共享 `/api` endpoint，并在没有直接文件系统访问权的情况下渲染宿主快照。两个 Web bundle row 默认禁用；部署只有在有意公开本地记忆检查时才同时启用宿主 row 与浏览器 row。
+`@deepseek-ai/dsh-client-ui-mempalace-dashboard` 是浏览器消费者。它注册一个 Settings 分区，调用已认证的共享 `/api` endpoint，并在没有直接文件系统访问权的情况下渲染宿主快照。`MEMPALACE_ENABLED=1` 会同时启用原生提供方、自动消费者、宿主 API 和浏览器 row；所有其他值都会禁用这四个 row。
 
-投影只读文件。SQLite 句柄使用 `readOnly` 与 `PRAGMA query_only`；adapter 不调用 MemPalace CLI，不导入只读上游 clone，也不编辑 MemPalace 配置或数据。endpoint 仍处在既有 Connection Host/Origin 检查和浏览器认证之后。
+投影只读文件。SQLite 句柄使用 `readOnly` 与 `PRAGMA query_only`；聚合结果、明细结果和 sidecar 字节数都有上限。原生提供方通过其受管 bridge 解析配置而不打开 collection，存储检查则留在可销毁 worker thread 中。endpoint 仍处在既有 Connection Host/Origin 检查和浏览器认证之后。
 
 ## Alternatives considered
 

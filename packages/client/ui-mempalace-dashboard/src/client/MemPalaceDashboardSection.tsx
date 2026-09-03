@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { MemPalaceDashboardRequest, MemPalaceDashboardSnapshot, MemPalaceUnavailable } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 
@@ -28,18 +28,12 @@ const LIST_STYLE = { margin: 0, paddingInlineStart: '20px' }
 
 /** Render the read-only MemPalace dashboard section. */
 export function MemPalaceDashboardSection({ inspect, t }: MemPalaceDashboardSectionProps): ReactNode {
-  const [requestId, setRequestId] = useState(0)
+
   const [wing, setWing] = useState('')
   const [room, setRoom] = useState('')
   const [query, setQuery] = useState('')
   const [state, setState] = useState<ViewState>({ status: 'loading' })
-
-  const request = useMemo<MemPalaceDashboardRequest>(() => ({
-    wing,
-    room,
-    query,
-    limit: 25,
-  }), [query, room, wing])
+  const [request, setRequest] = useState<MemPalaceDashboardRequest>({ limit: 25 })
 
   useEffect(() => {
     let current = true
@@ -49,7 +43,7 @@ export function MemPalaceDashboardSection({ inspect, t }: MemPalaceDashboardSect
       error => { if (current) setState({ status: 'error', message: error instanceof Error ? error.message : String(error) }) },
     )
     return () => { current = false }
-  }, [inspect, request, requestId])
+  }, [inspect, request])
 
   return (
     <section style={WRAP_STYLE} aria-busy={state.status === 'loading'} data-mempalace-dashboard-status={state.status}>
@@ -57,7 +51,10 @@ export function MemPalaceDashboardSection({ inspect, t }: MemPalaceDashboardSect
         <h3>{t('title')}</h3>
         <p>{t('summary')}</p>
       </header>
-      <form style={FILTER_STYLE} onSubmit={(event) => { event.preventDefault(); setRequestId(value => value + 1) }}>
+      <form style={FILTER_STYLE} onSubmit={(event) => {
+        event.preventDefault()
+        setRequest({ wing, room, query, limit: 25 })
+      }}>
         <label style={INPUT_STYLE}>
           <span>{t('wingFilter')}</span>
           <input value={wing} onChange={event => { setWing(event.currentTarget.value) }} />
@@ -86,9 +83,23 @@ function SnapshotView({ snapshot, t }: {
   return (
     <div style={GRID_STYLE}>
       <section style={CARD_STYLE}>
+        <h4>{t('provider')}</h4>
+        {!snapshot.provider.available ? <UnavailableNotice unavailable={snapshot.provider} /> : (
+          <p>{t('providerStatus', {
+            state: snapshot.provider.value.state,
+            pending: snapshot.provider.value.pendingCaptures,
+            starts: snapshot.provider.value.workerStarts,
+          })}</p>
+        )}
+      </section>
+      <section style={CARD_STYLE}>
         <h4>{t('location')}</h4>
-        <p>{snapshot.location.backend} · {snapshot.location.collectionName}</p>
-        <code>{snapshot.location.palacePath}</code>
+        {!snapshot.location.available ? <UnavailableNotice unavailable={snapshot.location} /> : (
+          <>
+            <p>{snapshot.location.value.backend} · {snapshot.location.value.collectionName} · {snapshot.location.value.wing}</p>
+            <code>{snapshot.location.value.palacePath}</code>
+          </>
+        )}
       </section>
       <section style={CARD_STYLE}>
         <h4>{t('structure')}</h4>

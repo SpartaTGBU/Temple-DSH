@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { Context, Service } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
@@ -9,14 +9,24 @@ import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
 import { MEMPALACE_DASHBOARD_ENDPOINT } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { MemPalaceDashboardSection } from '../src/client/MemPalaceDashboardSection.tsx'
-import type { MemPalaceDashboardSectionInjected } from '../src/client/MemPalaceDashboardSection.tsx'
+import type { MemPalaceDashboardSectionInjected, MemPalaceDashboardSectionProps } from '../src/client/MemPalaceDashboardSection.tsx'
 
 usePinnedBrowserLanguages('zh-CN')
 afterEach(cleanup)
 
 const SNAPSHOT = {
   generatedAt: '2026-01-01T00:00:00Z',
-  location: { palacePath: '/tmp/palace', configPath: '/tmp/config.json', collectionName: 'mempalace_drawers', backend: 'sqlite_exact' },
+  provider: { available: true, value: { state: 'ready', backend: 'mempalace', pendingCaptures: 0, workerStarts: 1 } },
+  location: {
+    available: true,
+    value: {
+      palacePath: '/tmp/palace',
+      collectionName: 'mempalace_drawers',
+      backend: 'sqlite_exact',
+      wing: 'wing_general',
+      authority: 'memory-provider',
+    },
+  },
   filters: { limit: 25 },
   structure: { available: false, reason: 'palace-not-found', message: 'missing' },
   knowledgeGraph: { available: false, reason: 'knowledge-graph-not-found', message: 'missing' },
@@ -90,5 +100,29 @@ describe('ui-mempalace-dashboard browser plugin', () => {
 
     await fiber.dispose()
     await b.ctx.fiber.dispose()
+  })
+
+  it('renders provider and unavailable facts and only refreshes after filter submission', async () => {
+    const inspect = vi.fn().mockResolvedValue(SNAPSHOT)
+    const t = (key: string, values?: Record<string, unknown>): string => {
+      if (key === 'providerStatus') return `${String(values?.state)} ${String(values?.starts)}`
+      return key
+    }
+    render(<MemPalaceDashboardSection
+      {...({} as MemPalaceDashboardSectionProps)}
+      inspect={inspect}
+      close={vi.fn()}
+      t={t as never}
+    />)
+    await screen.findByText('ready 1')
+    expect(screen.getByText('/tmp/palace')).toBeDefined()
+    expect(screen.getAllByText('missing').length).toBeGreaterThan(0)
+    expect(inspect).toHaveBeenCalledOnce()
+
+    fireEvent.change(screen.getByLabelText('wingFilter'), { target: { value: 'wing_alpha' } })
+    expect(inspect).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByRole('button', { name: 'refresh' }))
+    await waitFor(() => { expect(inspect).toHaveBeenCalledTimes(2) })
+    expect(inspect).toHaveBeenLastCalledWith({ wing: 'wing_alpha', room: '', query: '', limit: 25 })
   })
 })

@@ -1,3 +1,4 @@
+/** English copy owned by the MemPalace dashboard locale namespace. */
 export const en = {
   nav: 'MemPalace',
   title: 'MemPalace dashboard',
@@ -8,6 +9,8 @@ export const en = {
   refresh: 'Refresh',
   loading: 'Loading MemPalace dashboard...',
   error: 'MemPalace dashboard failed',
+  provider: 'Native memory provider',
+  providerStatus: '{state} · {pending} pending captures · {starts} worker starts',
   location: 'Location',
   structure: 'Structure',
   counts: '{wings} wings · {rooms} rooms · {drawers} drawers',
@@ -23,6 +26,7 @@ export const en = {
   retrievalTransparency: 'Retrieval transparency',
 } as const
 
+/** Chinese copy owned by the MemPalace dashboard locale namespace. */
 export const zh = {
   nav: 'MemPalace',
   title: 'MemPalace 仪表盘',
@@ -33,6 +37,8 @@ export const zh = {
   refresh: '刷新',
   loading: '正在加载 MemPalace 仪表盘...',
   error: 'MemPalace 仪表盘失败',
+  provider: '原生记忆提供程序',
+  providerStatus: '{state} · {pending} 个待处理捕获 · {starts} 次工作进程启动',
   location: '位置',
   structure: '结构',
   counts: '{wings} 个翼区 · {rooms} 个房间 · {drawers} 个抽屉',
@@ -48,4 +54,5 @@ export const zh = {
   retrievalTransparency: '检索透明度',
 } as const
 
+/** Translation keys owned by the MemPalace dashboard locale namespace. */
 export type MemPalaceDashboardKey = keyof typeof en

@@ -1,9 +1,10 @@
 /** Read-only MemPalace dashboard projection over local persisted files. */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import type { MemoryInspectionSource, MemoryStatus } from '@deepseek-ai/dsh-memory'
 import type {
   MemPalaceDashboardRequest,
   MemPalaceDashboardSnapshot,
@@ -12,6 +13,7 @@ import type {
   MemPalaceKnowledgeFactView,
   MemPalaceKnowledgeGraphView,
   MemPalaceLocationView,
+  MemPalaceProviderStatusView,
   MemPalaceRoomView,
   MemPalaceSection,
   MemPalaceStructureView,
@@ -24,6 +26,9 @@ const DEFAULT_COLLECTION_NAME = 'mempalace_drawers'
 const DEFAULT_BACKEND = 'chroma'
 const DEFAULT_LIMIT = 25
 const MAX_LIMIT = 100
+const MAX_GROUPS = 1000
+const MAX_CONFIG_BYTES = 64 * 1024
+const MAX_TUNNELS_BYTES = 1024 * 1024
 
 /** Filesystem and environment dependencies for deterministic projection tests. */
 export interface MemPalaceProjectionOptions {
@@ -33,8 +38,12 @@ export interface MemPalaceProjectionOptions {
   readonly env?: Readonly<Record<string, string | undefined>>
   /** Direct config file override for tests or profile patches. */
   readonly configPath?: string
-  /** Direct palace path override for tests or profile patches. */
+  /** Direct palace path override for standalone tests. */
   readonly palacePath?: string
+  /** Provider-resolved coordinates; authoritative when present. */
+  readonly source?: MemoryInspectionSource
+  /** Safe provider status facts copied without the free-form detail field. */
+  readonly providerStatus?: MemoryStatus
   /** Maximum drawers and facts returned when the request omits a limit. */
   readonly defaultLimit?: number
 }
@@ -80,6 +89,8 @@ const CHROMA_DRIVER: SqliteDriver = {
     LEFT JOIN embedding_metadata dm ON dm.id = e.id AND dm.key = 'date'
     WHERE c.name = ?
     GROUP BY wing, room, hall
+    ORDER BY drawerCount DESC, wing, room
+    LIMIT ?
   `,
   drawers: `
     SELECT
@@ -102,7 +113,7 @@ const CHROMA_DRIVER: SqliteDriver = {
     WHERE c.name = ?
       AND (? IS NULL OR wing = ?)
       AND (? IS NULL OR room = ?)
-      AND (? IS NULL OR lower(document) LIKE ? OR lower(sourceFile) LIKE ? OR lower(id) LIKE ?)
+      AND (? IS NULL OR lower(document) LIKE ? OR lower(sourceFile) LIKE ? OR lower(e.embedding_id) LIKE ?)
     ORDER BY e.id DESC
     LIMIT ?
   `,
@@ -120,6 +131,8 @@ const SQLITE_EXACT_DRIVER: SqliteDriver = {
     JOIN collections c ON d.collection_id = c.id
     WHERE c.name = ?
     GROUP BY wing, room, hall
+    ORDER BY drawerCount DESC, wing, room
+    LIMIT ?
   `,
   drawers: `
     SELECT
@@ -158,11 +171,40 @@ export function buildMemPalaceDashboard(
   const health = projectHealth(structure, knowledgeGraph)
   return {
     generatedAt: new Date().toISOString(),
-    location,
+    provider: providerView(options.providerStatus),
+    location: { available: true, value: location },
     filters,
     structure,
     knowledgeGraph,
     health,
+    retrievalTransparency: unavailable(
+      'retrieval-traces-not-persisted',
+      'MemPalace does not persist per-answer retrieval traces or model-context snapshots in the inspected files.',
+    ),
+  }
+}
+
+/**
+ * Build a complete unavailable snapshot when the configured provider cannot identify storage.
+ * @param request - raw bounded filter request.
+ * @param reason - provider availability reason.
+ * @param message - safe user-facing diagnostic.
+ * @returns a snapshot with no inferred location or persisted values.
+ */
+export function unavailableMemPalaceDashboard(
+  request: MemPalaceDashboardRequest,
+  reason: 'memory-provider-not-found' | 'memory-provider-unsupported' | 'memory-provider-unavailable',
+  message: string,
+): MemPalaceDashboardSnapshot {
+  const section = unavailable(reason, message)
+  return {
+    generatedAt: new Date().toISOString(),
+    provider: section,
+    location: section,
+    filters: normalizeRequest(request),
+    structure: section,
+    knowledgeGraph: section,
+    health: section,
     retrievalTransparency: unavailable(
       'retrieval-traces-not-persisted',
       'MemPalace does not persist per-answer retrieval traces or model-context snapshots in the inspected files.',
@@ -203,10 +245,21 @@ function normalizedString(value: string | undefined): string | undefined {
 }
 
 function resolveConfig(options: MemPalaceProjectionOptions): ResolvedConfig {
+  if (options.source !== undefined) {
+    return {
+      location: {
+        palacePath: resolve(options.source.palacePath),
+        collectionName: options.source.collectionName,
+        backend: options.source.storageBackend.trim().toLowerCase(),
+        wing: options.source.wing,
+        authority: 'memory-provider',
+      },
+    }
+  }
   const home = options.home ?? homedir()
   const env = options.env ?? process.env
   const configPath = resolve(options.configPath ?? join(home, '.mempalace', 'config.json'))
-  const fileConfig = readJsonObject(configPath)
+  const fileConfig = readJsonObject(configPath, MAX_CONFIG_BYTES)
   const palacePath = resolve(
     options.palacePath
       ?? env.MEMPALACE_PALACE_PATH
@@ -221,11 +274,20 @@ function resolveConfig(options: MemPalaceProjectionOptions): ResolvedConfig {
     ?? detectBackend(palacePath)
     ?? DEFAULT_BACKEND
   ).trim().toLowerCase()
-  return { location: { palacePath, configPath, collectionName, backend } }
+  return {
+    location: {
+      palacePath,
+      collectionName,
+      backend,
+      wing: env.MEMPALACE_WING ?? 'wing_general',
+      authority: 'standalone-projection',
+    },
+  }
 }
 
-function readJsonObject(path: string): Record<string, unknown> {
+function readJsonObject(path: string, maxBytes: number): Record<string, unknown> {
   try {
+    if (statSync(path).size > maxBytes) return {}
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown
     return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}
   } catch {
@@ -262,7 +324,7 @@ function readStructure(
     try {
       db.exec('PRAGMA query_only = ON')
       db.exec('PRAGMA busy_timeout = 2000')
-      const rooms = rowsOf<GroupRow>(db.prepare(dbInfo.driver.grouped).all(location.collectionName))
+      const rooms = rowsOf<GroupRow>(db.prepare(dbInfo.driver.grouped).all(location.collectionName, MAX_GROUPS))
         .filter(row => row.wing.length > 0 && row.room.length > 0)
         .sort((a, b) => b.drawerCount - a.drawerCount || a.wing.localeCompare(b.wing) || a.room.localeCompare(b.room))
       const drawers = rowsOf<DrawerSqlRow>(db.prepare(dbInfo.driver.drawers).all(
@@ -360,7 +422,11 @@ function readTunnels(
       ? unavailable('tunnels-not-found', 'No MemPalace tunnels.json sidecar exists, and no passive cross-wing room tunnels were found.')
       : { available: true, value: passive }
   }
-  const explicit = readJsonArray(tunnelPath).map(explicitTunnel).filter(tunnel => tunnel !== undefined)
+  const explicitRows = readJsonArray(tunnelPath, MAX_TUNNELS_BYTES)
+  if (explicitRows === undefined) {
+    return unavailable('sidecar-read-failed', 'MemPalace tunnels.json is invalid or exceeds the inspection size limit.')
+  }
+  const explicit = explicitRows.map(explicitTunnel).filter(tunnel => tunnel !== undefined)
   return { available: true, value: [...passive, ...explicit] }
 }
 
@@ -390,12 +456,13 @@ function passiveTunnels(rooms: readonly MemPalaceRoomView[]): MemPalaceTunnelVie
   return tunnels
 }
 
-function readJsonArray(path: string): unknown[] {
+function readJsonArray(path: string, maxBytes: number): unknown[] | undefined {
   try {
+    if (statSync(path).size > maxBytes) return undefined
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown
-    return Array.isArray(parsed) ? parsed : []
+    return Array.isArray(parsed) ? parsed : undefined
   } catch {
-    return []
+    return undefined
   }
 }
 
@@ -528,6 +595,21 @@ function projectHealth(
     ],
   }
   return { available: true, value }
+}
+
+function providerView(status: MemoryStatus | undefined): MemPalaceSection<MemPalaceProviderStatusView> {
+  if (status === undefined) {
+    return unavailable('memory-provider-unsupported', 'This standalone projection was not resolved through ctx.memory.')
+  }
+  return {
+    available: true,
+    value: {
+      state: status.state,
+      backend: status.backend,
+      pendingCaptures: status.pendingCaptures,
+      workerStarts: status.workerStarts,
+    },
+  }
 }
 
 function unavailable(reason: MemPalaceUnavailable['reason'], message: string): MemPalaceUnavailable {

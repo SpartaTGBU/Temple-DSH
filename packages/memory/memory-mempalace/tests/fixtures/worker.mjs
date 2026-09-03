@@ -5,6 +5,20 @@ function reply(value) { process.stdout.write(JSON.stringify(value) + '\n') }
 lines.on('line', line => {
   const request = JSON.parse(line)
   const run = () => {
+    if (request.method === 'configuration') {
+      reply({
+        id: request.id,
+        ok: true,
+        result: {
+          kind: 'mempalace',
+          palacePath: 'C:/fixture/palace',
+          collectionName: 'fixture_collection',
+          storageBackend: 'sqlite_exact',
+          wing: 'wing_fixture',
+        },
+      })
+      return
+    }
     if (request.method === 'recall') {
       if (request.payload.query === 'malformed') { process.stdout.write('not-json\n'); return }
       reply({ id: request.id, ok: true, result: { items: [{ text: `memory:${request.payload.query}`, wing: 'w', room: 'r' }], truncated: false } })
