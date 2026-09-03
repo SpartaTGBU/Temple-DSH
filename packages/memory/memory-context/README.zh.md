@@ -16,9 +16,9 @@ kind: "package-reference"
 - [使用此包](#use-this-package)
 - [理解实现](#understand-the-implementation)
 - [延伸阅读](#further-exploration)
-- [开发备注](#dev-note)
 - [模型体验](#model-experience)
 - [已知限制和延后工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
 
 <a id="use-this-package"></a>
 ## 使用此包
@@ -38,35 +38,34 @@ kind: "package-reference"
 - [记忆子系统](../../../docs/subsystems/memory.zh.md)
 - [原生 MemPalace 决策](../../../.agents/notes/implemented/feature/2026-09-02-native-mempalace-memory.zh.md)
 
+<a id="model-experience"></a>
+## 模型体验
+
+### 召回上下文消息
+
+#### 模型看到的内容
+
+合格轮次的首次请求可以收到一条归因于 `memory-context` 的额外持久用户角色消息，其中包含有界召回记忆和指令注入警告。
+
+#### Token 影响
+
+该消息增加不超过 `maxRecallBytes` 的召回文本以及固定来源和不可信数据包装；没有结果的轮次不增加内容。
+
+#### KV Cache 影响
+
+召回只改变稳定既有历史之后的请求后缀。后续 step 不会重复召回。
+
+<a id="known-limitations-and-deferred-work"></a>
+## 已知限制和延后工作
+
+- 捕获失败会记录日志但消费者不重试；提供方队列拥有已接受工作。
+- 即使找不到结果，每个进程内会话/轮次也只运行一次召回。
+
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
 
 <details><summary>维护者工作上下文——点击展开</summary>
 
 无。
 
 </details>
-
-<a id="model-experience"></a>
-## 模型体验
-
-### 召回上下文
-
-#### 模型看到什么
-
-合格轮次的首次请求可以收到一条额外持久 `user` 角色上下文消息，其中包含有界召回记忆和指令注入警告。
-
-#### Token 影响
-
-召回为空或失败时没有 token。成功召回每轮添加一次数据相关文本，并受 `maxRecallBytes` 限制。
-
-#### KV Cache 影响
-
-召回只改变稳定既有历史之后的请求后缀。后续 step 不会重复召回。
-
-## 已知限制和延后工作
-
-<a id="known-limitations-and-deferred-work"></a>
-
-- 捕获失败会记录日志但消费者不重试；提供方队列拥有已接受工作。
-- 即使找不到结果，每个进程内会话/轮次也只运行一次召回。

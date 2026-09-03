@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-02-native-mempalace-memory.md
-2026-09-02-native-mempalace-memory.md: 538a57d8b3f040bd8fe532fe392d702575dad887
-2026-09-02-native-mempalace-memory.zh.md: 30fd5735bf3963a3ee214d24a6384587f2bd2491
+2026-09-02-native-mempalace-memory.md: d6b6464d65ec1c205ad8d7a8ba3d38f86c5635b9
+2026-09-02-native-mempalace-memory.zh.md: 7eba3f466ec23c02ad7745b0dcc386e40b381b61

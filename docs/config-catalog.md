@@ -1567,10 +1567,20 @@ export interface Config {
   readonly maxFrameBytes?: number
   /** Managed-process termination grace in milliseconds. @default 2000 */
   readonly graceMs?: number
+  /** Maximum nodes accepted in one host graph response. @default 500 */
+  readonly maxGraphNodes?: number
+  /** Maximum edges accepted in one host graph response. @default 2000 */
+  readonly maxGraphEdges?: number
+  /** Maximum graph traversal depth. @default 4 */
+  readonly maxGraphHops?: number
+  /** Maximum serialized bytes accepted in one graph result. @default 524288 */
+  readonly maxGraphBytes?: number
+  /** Maximum palace metadata records inspected by one graph operation. @default 10000 */
+  readonly maxGraphScanRecords?: number
 }
 ```
 
-Source: [`packages/memory/memory-mempalace/src/index.ts:19`](../packages/memory/memory-mempalace/src/index.ts)
+Source: [`packages/memory/memory-mempalace/src/index.ts:18`](../packages/memory/memory-mempalace/src/index.ts)
 
 <a id="deepseek-aidsh-memory-pressure"></a>
 

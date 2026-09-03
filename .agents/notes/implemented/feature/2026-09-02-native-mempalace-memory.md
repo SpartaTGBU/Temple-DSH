@@ -1,4 +1,4 @@
-# Agent Note: Native MemPalace automatic memory
+# Agent Note: native MemPalace automatic memory
 
 Status: implemented
 
@@ -6,22 +6,22 @@ English | [中文](2026-09-02-native-mempalace-memory.zh.md)
 
 ## Problem
 
-An explicit model-facing memory tool cannot guarantee recall before a request or capture after a completed turn. Starting one Python process per operation also repeats runtime and embedding initialization, while importing MemPalace into the Node process would erase the runtime boundary.
+Explicit model-facing memory tools cannot guarantee recall before a request or capture after a completed turn. Starting Python for every operation also repeats backend and embedding initialization, while an MCP server would add a second application and lifecycle authority.
 
 ## Decision
 
-Temple-DSH treats long-term memory as a native capability rather than a model-facing MCP tool. A provider-neutral `ctx.memory` service separates storage from agent lifecycle behavior. The `memory-context` consumer recalls once before the first model request of a turn and captures one successful completed exchange asynchronously. The MemPalace provider calls direct Python APIs through one managed persistent sidecar.
+Temple-DSH treats long-term memory as a native capability. A provider-neutral `ctx.memory` service separates storage from agent lifecycle behavior. The `memory-context` consumer recalls once before the first model request of a turn and captures one successful completed exchange asynchronously. The MemPalace provider calls direct Python APIs through one managed persistent sidecar.
 
-Recall context is bounded and explicitly untrusted. Only direct-user text forms queries; capture excludes plugin context, reasoning, and tool traffic. Subagent capture is opt-in. The append-only session log remains unchanged except for the ordinary source-attributed recall message admitted by the pre-step pipeline.
+Recall context is bounded and explicitly untrusted. Only direct-user text forms queries; capture excludes plugin context, reasoning, and tool traffic. Subagent capture is opt-in. The append-only session log changes only through the ordinary source-attributed recall message admitted by the pre-step pipeline.
 
-The process boundary uses argv execution without a shell, request-id JSONL frames, response-size caps, cancellation deadlines, a bounded capture queue, graceful flush, and process-tree teardown. Raw stderr and credentials never become model context.
+The process uses argv execution without a shell, request-id JSONL frames, response-size caps, cancellation deadlines, a bounded capture queue, graceful flush, and process-tree teardown. Raw stderr and credentials never become model context. [Provider-owned palace graph exploration](2026-09-02-mempalace-multipass-graph-seam.md) extends the same service and worker without adding a model tool or second process.
 
 ## Alternatives considered
 
-**Use an MCP wrapper.** MCP requires explicit tool calls and exposes memory as a model choice, so it cannot guarantee recall or capture.
+**MCP or model-facing memory tools** — Rejected because the model could omit required recall or capture, and a server would duplicate application lifecycle.
 
-**Start one Python process per operation.** Per-operation processes simplify isolation but multiply startup and embedding initialization cost. The persistent sidecar keeps one backend collection while preserving Temple-DSH process ownership.
+**One Python process per operation** — Rejected because repeated backend collection and embedding initialization increases latency and resource use.
 
 ## Consequences
 
-The provider and lifecycle consumer remain explicit opt-ins. Recall failure degrades to the original request, accepted captures drain through the bounded queue, and disposal joins the managed sidecar. Focused tests exercise first-step recall, injection bounds, timeout degradation, exactly-once capture, subagent filtering, worker reuse, restart after timeout or malformed output, queue overflow, flush, and disposal. A live Chroma round trip captures and recalls a known value through the packaged bridge.
+One configured provider owns recall, capture, status, flush, graph acquisition, backend selection, and worker teardown. Provider failure degrades automatic recall without failing the model turn; accepted capture work is bounded and flushed. Focused tests cover first-step recall, injection limits, timeout degradation, exactly-once capture, subagent filtering, worker reuse/restart, queue overflow, flush, and disposal. A fixture executes the packaged bridge against direct MemPalace-compatible APIs; a real installed Chroma round trip remains environment-dependent.

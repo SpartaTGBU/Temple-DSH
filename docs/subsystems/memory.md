@@ -14,9 +14,13 @@ Source: [`packages/memory/memory/src/index.ts`](../../packages/memory/memory/src
 
 `captureTurn` receives one completed user/assistant exchange plus session, turn, completion time, and optional workspace. The consumer submits only direct user text and visible assistant text after a `completed` `turn/end`; it excludes plugin messages, reasoning, tool traffic, and subagent sessions by default. `flush` waits for accepted capture work.
 
+## Graph exploration
+
+`exploreGraph` is a trusted host operation over the configured provider. Its request contains an optional start room and strict node, edge, hop, and UTF-8 result-byte limits; it cannot contain graph data, paths, commands, executables, or provider configuration. The result contains renderer-neutral room/wing nodes, placement/tunnel/path edges, deterministic breadth-first visits, counts, and an explicit truncation flag. This package supplies no Dashboard endpoint or UI; a separate authenticated host consumer can forward the DTO and bind request cancellation without exposing MemPalace process or storage authority.
+
 ## Lifecycle and safety
 
-The MemPalace provider starts one lazy worker through `ctx.subprocess`, communicates with request-id JSONL frames, and restarts after protocol failure or request timeout. Its capture queue has a fixed maximum and rejects overflow explicitly. Child stderr, environment credentials, and connection details do not enter recalled context.
+The MemPalace provider starts one lazy worker through `ctx.subprocess`, communicates with request-id JSONL frames, and restarts after protocol failure or request timeout. Graph acquisition reuses that worker and collection, stops metadata paging at a configured scan ceiling, applies result limits in Python and TypeScript, and terminates the worker on cancellation. Its capture queue has a fixed maximum and rejects overflow explicitly. Child stderr, environment credentials, and connection details do not enter recalled context or graph data.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -46,6 +50,16 @@ abstract status(): MemoryStatus
  * @returns provider-neutral recalled fragments within the requested bounds.
  */
 abstract recall(request: MemoryRecallRequest, signal?: AbortSignal): Promise<MemoryRecallResult>
+
+/**
+ * Acquire a bounded renderer-neutral graph from this configured backend.
+ * The provider must read its active store directly; callers cannot supply a
+ * graph, path, command, or executable.
+ * @param request - strict node, edge, hop, and serialized-byte limits.
+ * @param signal - optional cancellation for this acquisition.
+ * @returns deterministic graph and traversal data within every requested limit.
+ */
+abstract exploreGraph(request: MemoryGraphRequest, signal?: AbortSignal): Promise<MemoryGraphResult>
 
 /**
  * Enqueue one completed turn for durable capture.

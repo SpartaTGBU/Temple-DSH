@@ -1217,6 +1217,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'provider-neutral recalled fragments within the requested bounds.',
       },
       {
+        signature: 'abstract exploreGraph(request: MemoryGraphRequest, signal?: AbortSignal): Promise<MemoryGraphResult>',
+        description: 'Acquire a bounded renderer-neutral graph from this configured backend. The provider must read its active store directly; callers cannot supply a graph, path, command, or executable.',
+        parameters: [{ name: 'request', description: 'strict node, edge, hop, and serialized-byte limits.' }, { name: 'signal', description: 'optional cancellation for this acquisition.' }],
+        returns: 'deterministic graph and traversal data within every requested limit.',
+      },
+      {
         signature: 'abstract captureTurn(turn: MemoryCaptureTurn): Promise<void>',
         description: 'Enqueue one completed turn for durable capture.',
         parameters: [{ name: 'turn', description: 'completed direct-user and visible-assistant exchange.' }],
@@ -4485,6 +4491,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'MemoryCaptureTurn',
     declaration: 'export interface MemoryCaptureTurn {\n    readonly sessionId: string;\n    readonly turn: number;\n    readonly userText: string;\n    readonly assistantText: string;\n    readonly completedAt: number;\n    readonly cwd?: string;\n}',
+  },
+  {
+    name: 'MemoryGraphEdge',
+    declaration: 'export interface MemoryGraphEdge {\n    readonly id: string;\n    readonly source: string;\n    readonly target: string;\n    readonly kind: \'placement\' | \'tunnel\' | \'path\';\n    readonly count: number;\n}',
+  },
+  {
+    name: 'MemoryGraphNode',
+    declaration: 'export interface MemoryGraphNode {\n    readonly id: string;\n    readonly kind: \'room\' | \'wing\';\n    readonly label: string;\n    readonly count: number;\n    readonly isolated: boolean;\n}',
+  },
+  {
+    name: 'MemoryGraphRequest',
+    declaration: 'export interface MemoryGraphRequest {\n    readonly startRoom?: string;\n    readonly maxNodes: number;\n    readonly maxEdges: number;\n    readonly maxHops: number;\n    readonly maxBytes: number;\n}',
+  },
+  {
+    name: 'MemoryGraphResult',
+    declaration: 'export interface MemoryGraphResult {\n    readonly format: \'dsh.memory.graph.v1\';\n    readonly backend: string;\n    readonly nodes: readonly MemoryGraphNode[];\n    readonly edges: readonly MemoryGraphEdge[];\n    readonly visits: readonly MemoryGraphVisit[];\n    readonly truncated: boolean;\n    readonly stats: {\n        readonly scannedRecords: number;\n        readonly nodeCount: number;\n        readonly edgeCount: number;\n        readonly maxHop: number;\n    };\n}',
+  },
+  {
+    name: 'MemoryGraphVisit',
+    declaration: 'export interface MemoryGraphVisit {\n    readonly nodeId: string;\n    readonly hop: number;\n    readonly parentNodeId?: string;\n    readonly via: readonly string[];\n}',
   },
   {
     name: 'MemoryPressureLevel',

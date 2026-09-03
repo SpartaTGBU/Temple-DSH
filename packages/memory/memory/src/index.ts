@@ -39,6 +39,62 @@ export interface MemoryRecallResult {
   readonly truncated: boolean
 }
 
+/** Hard limits selected by a trusted host graph consumer for one palace read. */
+export interface MemoryGraphRequest {
+  /** Optional room from which to compute deterministic breadth-first visits. */
+  readonly startRoom?: string
+  /** Maximum room and wing nodes in the complete result. */
+  readonly maxNodes: number
+  /** Maximum placement, tunnel, and traversal edges in the complete result. */
+  readonly maxEdges: number
+  /** Maximum traversal depth; zero permits only the selected start-room visit. */
+  readonly maxHops: number
+  /** Maximum UTF-8 bytes in the serialized result. */
+  readonly maxBytes: number
+}
+
+/** Renderer-neutral node acquired from the configured memory provider. */
+export interface MemoryGraphNode {
+  readonly id: string
+  readonly kind: 'room' | 'wing'
+  readonly label: string
+  readonly count: number
+  readonly isolated: boolean
+}
+
+/** Renderer-neutral edge acquired from the configured memory provider. */
+export interface MemoryGraphEdge {
+  readonly id: string
+  readonly source: string
+  readonly target: string
+  readonly kind: 'placement' | 'tunnel' | 'path'
+  readonly count: number
+}
+
+/** One deterministic breadth-first room visit. */
+export interface MemoryGraphVisit {
+  readonly nodeId: string
+  readonly hop: number
+  readonly parentNodeId?: string
+  readonly via: readonly string[]
+}
+
+/** Bounded palace graph projection for host APIs and local UI renderers. */
+export interface MemoryGraphResult {
+  readonly format: 'dsh.memory.graph.v1'
+  readonly backend: string
+  readonly nodes: readonly MemoryGraphNode[]
+  readonly edges: readonly MemoryGraphEdge[]
+  readonly visits: readonly MemoryGraphVisit[]
+  readonly truncated: boolean
+  readonly stats: {
+    readonly scannedRecords: number
+    readonly nodeCount: number
+    readonly edgeCount: number
+    readonly maxHop: number
+  }
+}
+
 /** One complete user/assistant exchange captured after a committed turn. */
 export interface MemoryCaptureTurn {
   readonly sessionId: string
@@ -77,6 +133,16 @@ export abstract class MemoryRuntime extends Service {
    * @returns provider-neutral recalled fragments within the requested bounds.
    */
   abstract recall(request: MemoryRecallRequest, signal?: AbortSignal): Promise<MemoryRecallResult>
+
+  /**
+   * Acquire a bounded renderer-neutral graph from this configured backend.
+   * The provider must read its active store directly; callers cannot supply a
+   * graph, path, command, or executable.
+   * @param request - strict node, edge, hop, and serialized-byte limits.
+   * @param signal - optional cancellation for this acquisition.
+   * @returns deterministic graph and traversal data within every requested limit.
+   */
+  abstract exploreGraph(request: MemoryGraphRequest, signal?: AbortSignal): Promise<MemoryGraphResult>
 
   /**
    * Enqueue one completed turn for durable capture.
