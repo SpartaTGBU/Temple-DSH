@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-09-02-session-memory-reclamation-roadmap.md
-2026-09-02-session-memory-reclamation-roadmap.md: 8bc1ae56a5dca69672916fbb7982190a1edf5ea2
-2026-09-02-session-memory-reclamation-roadmap.zh.md: 5f76c242c8bad52ab5f6c005a518134c79031245
+2026-09-02-session-memory-reclamation-roadmap.md: 5b2bf177ee124a16310cb2d05b2288208cf237eb
+2026-09-02-session-memory-reclamation-roadmap.zh.md: 7024960ff1a575a60a2300c617c156cfa818180b
