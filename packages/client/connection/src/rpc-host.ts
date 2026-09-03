@@ -57,7 +57,7 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host Connection service whose channel registrations belong to the caller fiber. */
 export class HostConnectionService extends Service implements HostConnectionHandle {
-  private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
+  private readonly interceptors = new Map<string, Set<ConnectionRpcInterceptor>>()
   private readonly fetchRoutes = new Map<string, RegisteredFetchRoute>()
 
   /**
@@ -122,9 +122,13 @@ export class HostConnectionService extends Service implements HostConnectionHand
         const route = this.fetchRoutes.get(pathname)
         if (route?.methods.has(request.method) === true) return route.fetch(request)
         const endpoint = endpointFromPath(channel, pathname)
-        const interceptor = this.interceptors.get(channel)
-        if (endpoint === undefined || interceptor === undefined || !interceptor.matches(endpoint)) {
-          return Promise.resolve(new Response('not found', { status: 404 }))
+        if (endpoint === undefined) return Promise.resolve(new Response('not found', { status: 404 }))
+        const matches = [...this.interceptors.get(channel) ?? []]
+          .filter(interceptor => interceptor.matches(endpoint))
+        const [interceptor] = matches
+        if (interceptor === undefined) return Promise.resolve(new Response('not found', { status: 404 }))
+        if (matches.length > 1) {
+          return Promise.resolve(new Response('ambiguous RPC endpoint ownership', { status: 500 }))
         }
         return interceptor.fetchHandler.fetch(request)
       },
@@ -189,12 +193,15 @@ export class HostConnectionService extends Service implements HostConnectionHand
       fetchHandler: rpcFetchHandler(channel, handler),
     }
     return owner.effect(() => {
-      if (this.interceptors.has(channel)) {
-        throw new Error(`connection: shared RPC channel ${JSON.stringify(channel)} already has an interceptor`)
+      let channelInterceptors = this.interceptors.get(channel)
+      if (channelInterceptors === undefined) {
+        channelInterceptors = new Set()
+        this.interceptors.set(channel, channelInterceptors)
       }
-      this.interceptors.set(channel, interceptor)
+      channelInterceptors.add(interceptor)
       return () => {
-        this.interceptors.delete(channel)
+        channelInterceptors.delete(interceptor)
+        if (channelInterceptors.size === 0) this.interceptors.delete(channel)
       }
     }, `client-connection: ${channel} rpc interceptor`)
   }

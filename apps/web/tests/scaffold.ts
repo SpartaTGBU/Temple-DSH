@@ -524,17 +524,8 @@ export async function launchWebScaffold(options: LaunchOptions = {}): Promise<We
       : [{ id: 'connection', config: { trustedHosts: [options.remoteAuthority] } }],
     { id: 'settings', config: { dshHome: harnessHome } },
     { id: 'credentials', config: { dshHome: harnessHome } },
-    // The shipped directory-picker row is the -auto chooser, which resolves
-    // the interaction from the RUNNING host (display, SSH launch, bind). The
-    // lane's goldens are interaction-specific (workspace-management drives
-    // the in-app browse dialog), so pin -browse deterministically on every
-    // host: patch `name` is an assertion, not an override, hence the
-    // disable+insert pair.
-    { id: 'directory-picker', disabled: true },
-    { insert: [
-      { id: 'directory-picker-browse', name: '@deepseek-ai/dsh-host-directory-picker-browse' },
-      { id: 'ui-directory-picker-browse', name: '@deepseek-ai/dsh-client-ui-directory-picker-browse' },
-    ] },
+    // The shipped Web bundle statically owns the in-app browse backend and
+    // client surface, so every Playwright world exercises production picker wiring.
     ...options.agentPresets === undefined
       ? []
       // Never the derived harness-home root: a developer's own presets must not
@@ -966,17 +957,20 @@ export function fixtureIdentity(
  * @returns the realized fixture text.
  */
 export function realizeSeedFixture(scaffold: WebScaffold, fixtureText: string, id: string): string {
-  const realized = fixtureText
+  const header = JSON.parse(fixtureText.split('\n', 1)[0]!) as { cwd?: string }
+  const fixtureCwd = header.cwd
+  const realizedCwd = fixtureCwd?.split('{{cwd}}').join(scaffold.workspaceCwd)
+  const escapeJsonContent = (value: string): string => JSON.stringify(value).slice(1, -1)
+  let realized = fixtureText
     .split('{{sessionId}}').join(id)
     .split('{{session:1}}').join(id)
     .replace(/\{\{session:([2-9]\d*)\}\}/g, (_token, ordinal: string) => `${id}-child-${ordinal}`)
     .replace(/\{\{(message|approval|workflow|command|rpc|retry|id):([1-9]\d*)\}\}/g, (_token, kind: string, ordinal: string) =>
       fixtureIdentity(kind as 'message' | 'approval' | 'workflow' | 'command' | 'rpc' | 'retry' | 'id', Number(ordinal)))
-    .split('{{cwd}}').join(scaffold.workspaceCwd)
-  const fixtureCwd = (JSON.parse(realized.split('\n', 1)[0]!) as { cwd?: string }).cwd
-  return fixtureCwd === undefined
-    ? realized
-    : realized.split(fixtureCwd).join(scaffold.workspaceCwd)
+  if (fixtureCwd !== undefined && realizedCwd !== undefined) {
+    realized = realized.split(escapeJsonContent(fixtureCwd)).join(escapeJsonContent(realizedCwd))
+  }
+  return realized.split('{{cwd}}').join(escapeJsonContent(scaffold.workspaceCwd))
 }
 
 /**
@@ -1111,7 +1105,7 @@ const ARIA_AGE =
 function normalizeAria(snapshot: string, workspaceCwd: string, age: boolean): string {
   // The session heading renders the workspace's basename, not the full
   // path, so both spellings must collapse to the token.
-  const base = workspaceCwd.split('/').pop()!
+  const base = basename(workspaceCwd)
   return (age ? snapshot.replace(ARIA_AGE, '{{age}}') : snapshot)
     .split(workspaceCwd).join('{{cwd}}')
     .split(base).join('{{workspace}}')

@@ -72,11 +72,14 @@
     - id: session-stats
       name: '@deepseek-ai/dsh-session-stats'
 
-    # Resolve bind host, SSH launch, and display once at boot, then mount the
-    # matching dual-face directory picker. Mount -native or -browse directly in
-    # an overlay to pin the interaction.
-    - id: directory-picker
-      name: '@deepseek-ai/dsh-host-directory-picker-auto'
+    # The Web surface defaults to its in-app browser so local and remote browser
+    # sessions share one testable interaction and never depend on a Host display.
+    # Deployments that want an OS dialog can replace this pair with -auto/-native.
+    - id: directory-picker-browse
+      name: '@deepseek-ai/dsh-host-directory-picker-browse'
+
+    - id: ui-directory-picker-browse
+      name: '@deepseek-ai/dsh-client-ui-directory-picker-browse'
 
     # Read-only projection of current Loader entries for trusted client RPCs.
     - id: plugin-inventory

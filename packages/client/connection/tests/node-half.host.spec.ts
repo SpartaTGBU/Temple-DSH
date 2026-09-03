@@ -304,11 +304,15 @@ describe('connection node half', () => {
         return { ok: true, value: { accepted: true } }
       },
     )
-    expect(() => connection.rpc.intercept(
+    const featureCalls: unknown[] = []
+    const removeFeature = connection.rpc.intercept(
       '/api',
-      () => true,
-      async () => ({ ok: true, value: null }),
-    )).toThrow('already has an interceptor')
+      endpoint => endpoint === 'mempalaceDashboard/inspect',
+      async (endpoint, payload) => {
+        featureCalls.push({ endpoint, payload })
+        return { ok: true, value: { available: true } }
+      },
+    )
     expect(() => connection.rpc.intercept(
       '/rpc' as '/api',
       () => true,
@@ -336,6 +340,38 @@ describe('connection node half', () => {
       endpoint: 'goals/create',
       payload: { args: { agentId: 'agent-1' } },
     }])
+
+    const featureRequest: ClientRequest = {
+      type: 'client-request',
+      rpcId: RpcId('rpc-feature'),
+      method: 'mempalaceDashboard/inspect',
+      payload: { limit: 5 },
+    }
+    const feature = fakeResponse()
+    await route.handler(fakePost({
+      host: '127.0.0.1:3080', cookie: loopbackCookie,
+    }, '/api/mempalaceDashboard/inspect', featureRequest), feature.response)
+    expect(JSON.parse(String(feature.state.body))).toEqual({
+      type: 'server-response',
+      rpcId: 'rpc-feature',
+      result: { ok: true, value: { available: true } },
+    })
+    expect(featureCalls).toEqual([{
+      endpoint: 'mempalaceDashboard/inspect',
+      payload: { limit: 5 },
+    }])
+
+    const removeOverlap = connection.rpc.intercept(
+      '/api',
+      endpoint => endpoint === 'goals/create',
+      async () => ({ ok: true, value: null }),
+    )
+    const ambiguous = fakeResponse()
+    await route.handler(fakePost({
+      host: '127.0.0.1:3080', cookie: loopbackCookie,
+    }, '/api/goals/create', request), ambiguous.response)
+    expect(ambiguous.state).toMatchObject({ status: 500, body: 'ambiguous RPC endpoint ownership' })
+    await removeOverlap()
 
     const denied = fakeResponse()
     await route.handler(fakePost({ host: 'other.example' }, '/api/goals/create', request), denied.response)
@@ -368,6 +404,7 @@ describe('connection node half', () => {
     }, '/api/goals/create', request), declared.response)
     expect(declared.state.status).toBe(200)
     await removeAuthenticated()
+    await removeFeature()
     await fiber.dispose()
   })
 
