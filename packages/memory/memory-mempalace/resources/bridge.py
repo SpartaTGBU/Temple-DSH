@@ -250,6 +250,28 @@ class Bridge:
                 self.palace_path, self.collection_name
             )
 
+    def configuration(self) -> dict[str, Any]:
+        """Resolve the same configuration as open() without opening or creating storage."""
+        with contextlib.redirect_stdout(sys.stderr):
+            from mempalace.backends.registry import resolve_backend_for_palace
+            from mempalace.config import MempalaceConfig
+
+            config = MempalaceConfig(palace_path=self.args.palace)
+            palace_path = str(config.palace_path)
+            backend_name = resolve_backend_for_palace(
+                explicit=self.args.backend,
+                config_value=config.backend,
+                env_value=None,
+                palace_path=palace_path,
+            )
+        return {
+            "kind": "mempalace",
+            "palacePath": palace_path,
+            "collectionName": self.args.collection or config.collection_name,
+            "storageBackend": backend_name,
+            "wing": self.args.wing,
+        }
+
     def status(self) -> dict[str, Any]:
         self.open()
         return {
@@ -401,6 +423,8 @@ class Bridge:
         self.backend = None
 
     def dispatch(self, method: str, payload: dict[str, Any]) -> tuple[Any, bool]:
+        if method == "configuration":
+            return self.configuration(), False
         if method == "status":
             return self.status(), False
         if method == "recall":

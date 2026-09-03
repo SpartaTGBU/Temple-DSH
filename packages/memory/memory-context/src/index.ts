@@ -128,8 +128,6 @@ function turnSet(store: WeakMap<Session, Set<number>>, session: Session): Set<nu
   return turns
 }
 
-function isAborted(signal: AbortSignal): boolean { return signal.aborted }
-
 /** Install automatic first-step recall and exactly-once completed-turn capture. */
 export function apply(ctx: Context, config: Config = {}): void {
   const recallLimit = config.recallLimit ?? 3
@@ -150,7 +148,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     const recallSignal = AbortSignal.any([signal, AbortSignal.timeout(recallTimeoutMs)])
     try {
       const result = await ctx.memory.recall({ sessionId: agent.id, query, limit: recallLimit, maxBytes: maxRecallBytes }, recallSignal)
-      if (isAborted(signal) || result.items.length === 0) return decision
+      if (recallSignal.aborted || result.items.length === 0) return decision
       const text = renderRecall(result.items, maxRecallBytes)
       return {
         ...decision,
@@ -160,7 +158,7 @@ export function apply(ctx: Context, config: Config = {}): void {
         })],
       }
     } catch (error) {
-      if (!isAborted(signal)) ctx.logger.warn(`memory-context recall skipped: ${String(error)}`)
+      if (!recallSignal.aborted) ctx.logger.warn(`memory-context recall skipped: ${String(error)}`)
       return decision
     }
   }, { prepend: true })

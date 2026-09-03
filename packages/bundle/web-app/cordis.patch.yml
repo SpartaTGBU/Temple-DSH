@@ -95,6 +95,12 @@
     - id: workspace-controller
       name: '@deepseek-ai/dsh-api-workspace-controller'
 
+    # Read-only MemPalace inspection follows the same explicit process opt-in
+    # as the native memory provider and resolves storage through ctx.memory.
+    - id: mempalace-dashboard
+      name: '@deepseek-ai/dsh-api-mempalace-dashboard'
+      disabled: !!js process.env.MEMPALACE_ENABLED !== '1'
+
     - id: cordis-host-runner
       name: '@deepseek-ai/dsh-cordis-host-runner'
 
@@ -292,6 +298,11 @@
 
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
+
+    # Optional Settings section for the MemPalace dashboard API above.
+    - id: ui-mempalace-dashboard
+      name: '@deepseek-ai/dsh-client-ui-mempalace-dashboard'
+      disabled: !!js process.env.MEMPALACE_ENABLED !== '1'
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #

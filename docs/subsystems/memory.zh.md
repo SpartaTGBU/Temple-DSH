@@ -20,7 +20,7 @@
 
 ## 生命周期和安全
 
-MemPalace 提供方通过 `ctx.subprocess` 启动一个惰性 worker，以带请求 id 的 JSONL 帧通信，并在协议失败或请求超时后重启。图获取复用该 worker 和 collection，在配置的扫描上限处停止 metadata 分页，在 Python 与 TypeScript 中应用结果上限，并在取消时终止 worker。捕获队列有固定最大值，并明确拒绝溢出。子进程 stderr、环境凭据和连接细节不会进入召回上下文或图数据。
+MemPalace 提供方通过 `ctx.subprocess` 启动一个惰性 worker，以带请求 id 的 JSONL 帧通信，并在协议失败或请求超时后重启。图获取复用该 worker 和 collection，在配置的扫描上限处停止 metadata 分页，在 Python 与 TypeScript 中应用结果上限，并在取消时终止 worker。捕获队列有固定最大值，并明确拒绝溢出。`inspectionSource()` 通过同一个提供方配置为只读 Dashboard 消费者解析非机密存储坐标，而不打开或创建存储。子进程 stderr、提供方自由格式细节、环境凭据和连接细节不会进入召回上下文、图数据或 Dashboard 状态。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -42,6 +42,14 @@ Swappable long-term memory provider. Implementations own storage/process lifecyc
  * @returns the current backend state and queue counters.
  */
 abstract status(): MemoryStatus
+
+/**
+ * Resolve non-secret storage coordinates through the provider's own configuration path.
+ * Providers that do not support local inspection return `undefined`.
+ * @param signal - optional cancellation for provider-side resolution.
+ * @returns a read-only inspection source, or `undefined` when unsupported.
+ */
+inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>
 
 /**
  * Recall bounded background information for one turn.

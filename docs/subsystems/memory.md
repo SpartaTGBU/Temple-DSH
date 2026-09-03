@@ -20,7 +20,7 @@ Source: [`packages/memory/memory/src/index.ts`](../../packages/memory/memory/src
 
 ## Lifecycle and safety
 
-The MemPalace provider starts one lazy worker through `ctx.subprocess`, communicates with request-id JSONL frames, and restarts after protocol failure or request timeout. Graph acquisition reuses that worker and collection, stops metadata paging at a configured scan ceiling, applies result limits in Python and TypeScript, and terminates the worker on cancellation. Its capture queue has a fixed maximum and rejects overflow explicitly. Child stderr, environment credentials, and connection details do not enter recalled context or graph data.
+The MemPalace provider starts one lazy worker through `ctx.subprocess`, communicates with request-id JSONL frames, and restarts after protocol failure or request timeout. Graph acquisition reuses that worker and collection, stops metadata paging at a configured scan ceiling, applies result limits in Python and TypeScript, and terminates the worker on cancellation. Its capture queue has a fixed maximum and rejects overflow explicitly. `inspectionSource()` resolves non-secret storage coordinates through that same provider configuration for read-only dashboard consumers without opening or creating storage. Child stderr, free-form provider details, environment credentials, and connection details do not enter recalled context, graph data, or dashboard status.
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -42,6 +42,14 @@ Swappable long-term memory provider. Implementations own storage/process lifecyc
  * @returns the current backend state and queue counters.
  */
 abstract status(): MemoryStatus
+
+/**
+ * Resolve non-secret storage coordinates through the provider's own configuration path.
+ * Providers that do not support local inspection return `undefined`.
+ * @param signal - optional cancellation for provider-side resolution.
+ * @returns a read-only inspection source, or `undefined` when unsupported.
+ */
+inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>
 
 /**
  * Recall bounded background information for one turn.

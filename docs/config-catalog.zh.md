@@ -292,6 +292,30 @@ export interface Config {
 
 来源：[`packages/api/gateway/src/index.ts:117`](../packages/api/gateway/src/index.ts)
 
+<a id="deepseek-aidsh-api-mempalace-dashboard"></a>
+
+## `@deepseek-ai/dsh-api-mempalace-dashboard`
+
+需要：`connection`
+
+```ts config-catalog
+/** Host API configuration. */
+export interface Config {
+  /** Whether to register the read-only API. @default true */
+  readonly enabled?: boolean
+  /** Default read limit for drawers and timeline facts. @default 25 */
+  readonly defaultLimit?: number
+  /** Provider configuration resolution timeout in milliseconds. @default 5000 */
+  readonly sourceTimeoutMs?: number
+  /** Hard lifetime for one storage projection worker in milliseconds. @default 5000 */
+  readonly projectionTimeoutMs?: number
+  /** Maximum simultaneous storage projection workers. @default 4 */
+  readonly maxConcurrentProjections?: number
+}
+```
+
+来源：[`packages/api/mempalace-dashboard/src/index.ts:25`](../packages/api/mempalace-dashboard/src/index.ts)
+
 <a id="deepseek-aidsh-api-session-controller"></a>
 
 ## `@deepseek-ai/dsh-api-session-controller`
@@ -3564,6 +3588,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-input-trigger`（[`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-mempalace-dashboard`（[`packages/client/ui-mempalace-dashboard/src/index.ts`](../packages/client/ui-mempalace-dashboard/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-model-selection`（[`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-permission-presets`（[`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts)）

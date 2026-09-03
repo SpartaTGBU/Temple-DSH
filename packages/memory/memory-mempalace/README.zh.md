@@ -25,7 +25,7 @@ kind: "package-reference"
 
 把 MemPalace 安装到配置的 Python 环境中，在 `dsh-memory-context` 之前挂载此提供方，并显式启用二者。基础 profile 支持 `MEMPALACE_ENABLED=1`、`MEMPALACE_PYTHON`、`MEMPALACE_PALACE_PATH`、`MEMPALACE_COLLECTION`、`MEMPALACE_BACKEND` 和 `MEMPALACE_WING`。独立示例是 [`mempalace-native.cordis.yml`](../../../apps/cli/config/examples/memory/mempalace-native.cordis.yml)。
 
-提供方维护有界捕获队列，在超时或协议输出格式错误/超大后重启 worker，在 TypeScript 边界再次应用召回和图上限，并在 flush 与销毁时排空已接受捕获工作。图调用方在配置的 `maxGraphNodes`、`maxGraphEdges`、`maxGraphHops` 和 `maxGraphBytes` 内选择上限；`maxGraphScanRecords` 限制后端 metadata 读取。子进程 stderr 和凭据不会进入结果或模型可见错误。
+提供方维护有界捕获队列，在超时或协议输出格式错误/超大后重启 worker，在 TypeScript 边界再次应用召回和图上限，并在 flush 与销毁时排空已接受捕获工作。图调用方在配置的 `maxGraphNodes`、`maxGraphEdges`、`maxGraphHops` 和 `maxGraphBytes` 内选择上限；`maxGraphScanRecords` 限制后端 metadata 读取。它的 `inspectionSource()` 操作通过同一个 bridge 配置解析 palace、collection、存储后端与捕获 wing，而不打开或创建存储。子进程 stderr、自由格式提供方细节和凭据不会进入图结果、Dashboard 快照或模型可见错误。
 
 <a id="understand-the-implementation"></a>
 ## 理解实现

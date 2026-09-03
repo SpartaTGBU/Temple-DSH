@@ -278,6 +278,7 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   ResolvedRetryPolicy: 'llm-streaming.md',
   MemoryBackendState: 'memory.md',
   MemoryCaptureTurn: 'memory.md',
+  MemoryInspectionSource: 'memory.md',
   MemoryRecallItem: 'memory.md',
   MemoryRecallRequest: 'memory.md',
   MemoryRecallResult: 'memory.md',

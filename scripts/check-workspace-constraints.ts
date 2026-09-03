@@ -141,6 +141,9 @@ function workspaceManifests(): WorkspaceManifest[] {
 }
 
 const packageFileExtras: Readonly<Record<string, readonly string[]>> = {
+  // The Host projection isolates synchronous SQLite and sidecar reads in a
+  // private one-shot worker rather than exposing a public worker subpath.
+  '@deepseek-ai/dsh-api-mempalace-dashboard': ['lib/projection-worker.js'],
   // The memory-meter's session-aware measurement subpaths ship as their own
   // bundles beside the base lib: `./chunk-reclaim` (needs dsh-session) and
   // `./log-tiering` keep the base module dependency-free, so each is a separate

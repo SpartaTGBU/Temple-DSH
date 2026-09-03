@@ -26,6 +26,20 @@ function graph(request) {
 lines.on('line', line => {
   const request = JSON.parse(line)
   const run = () => {
+    if (request.method === 'configuration') {
+      reply({
+        id: request.id,
+        ok: true,
+        result: {
+          kind: 'mempalace',
+          palacePath: 'C:/fixture/palace',
+          collectionName: 'fixture_collection',
+          storageBackend: 'sqlite_exact',
+          wing: 'wing_fixture',
+        },
+      })
+      return
+    }
     if (request.method === 'recall') {
       if (request.payload.query === 'malformed') { process.stdout.write('not-json\n'); return }
       if (request.payload.query === 'oversized-frame') { process.stdout.write('x'.repeat(5000)); return }

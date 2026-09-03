@@ -65,7 +65,8 @@ describe('automatic recall', () => {
     expect(recalled.source).toEqual(expect.objectContaining({ kind: 'plugin', plugin: 'memory-context', form: 'snapshot' }))
     const recalledText = recalled.content[0]
     expect(recalledText?.type).toBe('text')
-    if (recalledText?.type === 'text') expect(recalledText.text).toContain('untrusted background')
+    if (recalledText?.type !== 'text') throw new Error('expected recalled text')
+    expect(recalledText.text).toContain('untrusted background')
     expect(JSON.stringify(recalled)).toContain('[identity/preferences] prefers concise answers')
     expect(second.kind).toBe('enter')
   })

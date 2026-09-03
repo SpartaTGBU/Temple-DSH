@@ -1,0 +1,58 @@
+/** English copy owned by the MemPalace dashboard locale namespace. */
+export const en = {
+  nav: 'MemPalace',
+  title: 'MemPalace dashboard',
+  summary: 'Inspect the local MemPalace structure, timeline facts, health signals, and retrieval transparency state exposed by the Host.',
+  wingFilter: 'Wing',
+  roomFilter: 'Room',
+  queryFilter: 'Drawer text',
+  refresh: 'Refresh',
+  loading: 'Loading MemPalace dashboard...',
+  error: 'MemPalace dashboard failed',
+  provider: 'Native memory provider',
+  providerStatus: '{state} · {pending} pending captures · {starts} worker starts',
+  location: 'Location',
+  structure: 'Structure',
+  counts: '{wings} wings · {rooms} rooms · {drawers} drawers',
+  drawers: 'drawers',
+  drawerSamples: 'Drawer samples',
+  tunnels: 'Tunnels',
+  knowledgeGraph: 'Knowledge graph and timeline',
+  kgCounts: '{entities} entities · {facts} facts · {current} current · {expired} expired',
+  current: 'current',
+  expired: 'expired',
+  health: 'Memory health',
+  healthCounts: '{drawers} drawers across {wings} wings and {rooms} rooms',
+  retrievalTransparency: 'Retrieval transparency',
+} as const
+
+/** Chinese copy owned by the MemPalace dashboard locale namespace. */
+export const zh = {
+  nav: 'MemPalace',
+  title: 'MemPalace 仪表盘',
+  summary: '检查宿主公开的本地 MemPalace 结构、时间线事实、健康信号与检索透明度状态。',
+  wingFilter: '翼区',
+  roomFilter: '房间',
+  queryFilter: '抽屉文本',
+  refresh: '刷新',
+  loading: '正在加载 MemPalace 仪表盘...',
+  error: 'MemPalace 仪表盘失败',
+  provider: '原生记忆提供程序',
+  providerStatus: '{state} · {pending} 个待处理捕获 · {starts} 次工作进程启动',
+  location: '位置',
+  structure: '结构',
+  counts: '{wings} 个翼区 · {rooms} 个房间 · {drawers} 个抽屉',
+  drawers: '个抽屉',
+  drawerSamples: '抽屉样本',
+  tunnels: '隧道',
+  knowledgeGraph: '知识图谱与时间线',
+  kgCounts: '{entities} 个实体 · {facts} 条事实 · {current} 条当前 · {expired} 条过期',
+  current: '当前',
+  expired: '过期',
+  health: '记忆健康',
+  healthCounts: '{drawers} 个抽屉，分布在 {wings} 个翼区和 {rooms} 个房间',
+  retrievalTransparency: '检索透明度',
+} as const
+
+/** Translation keys owned by the MemPalace dashboard locale namespace. */
+export type MemPalaceDashboardKey = keyof typeof en

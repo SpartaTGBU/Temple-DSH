@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import { MemPalaceMemory } from '@deepseek-ai/dsh-memory-mempalace'
+import { MemPalaceMemory, type Config } from '@deepseek-ai/dsh-memory-mempalace'
 import type { MemoryCaptureTurn } from '@deepseek-ai/dsh-memory'
 import { fileURLToPath } from 'node:url'
 import { parseGraphResult } from '../src/graph.ts'
@@ -14,7 +14,7 @@ afterEach(async () => {
   while (contexts.length > 0) await contexts.pop()!.fiber.dispose()
 })
 
-function mounted(overrides: ConstructorParameters<typeof MemPalaceMemory>[1] = {}) {
+function mounted(overrides: Config = {}) {
   const ctx = new Context()
   contexts.push(ctx)
   new LocalSubprocessRuntime(ctx)
@@ -34,6 +34,18 @@ function turn(userText = 'hello'): MemoryCaptureTurn {
 }
 
 describe('persistent worker', () => {
+  it('resolves inspection coordinates through the provider worker without exposing configuration internals', async () => {
+    const { memory } = mounted()
+    await expect(memory.inspectionSource()).resolves.toEqual({
+      kind: 'mempalace',
+      palacePath: 'C:/fixture/palace',
+      collectionName: 'fixture_collection',
+      storageBackend: 'sqlite_exact',
+      wing: 'wing_fixture',
+    })
+    expect(memory.status()).toEqual(expect.objectContaining({ state: 'ready', workerStarts: 1 }))
+  })
+
   it('reuses one process across recalls and bounds returned bytes', async () => {
     const { memory } = mounted()
     const first = await memory.recall({ sessionId: 's1', query: 'one', limit: 3, maxBytes: 1000 })

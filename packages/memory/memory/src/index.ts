@@ -14,6 +14,15 @@ export interface MemoryStatus {
   readonly workerStarts: number
 }
 
+/** Read-only storage coordinates exposed by a memory provider for inspection consumers. */
+export interface MemoryInspectionSource {
+  readonly kind: 'mempalace'
+  readonly palacePath: string
+  readonly collectionName: string
+  readonly storageBackend: string
+  readonly wing: string
+}
+
 /** One recalled memory fragment. */
 export interface MemoryRecallItem {
   readonly text: string
@@ -125,6 +134,17 @@ export abstract class MemoryRuntime extends Service {
    * @returns the current backend state and queue counters.
    */
   abstract status(): MemoryStatus
+
+  /**
+   * Resolve non-secret storage coordinates through the provider's own configuration path.
+   * Providers that do not support local inspection return `undefined`.
+   * @param signal - optional cancellation for provider-side resolution.
+   * @returns a read-only inspection source, or `undefined` when unsupported.
+   */
+  inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined> {
+    void signal
+    return Promise.resolve(undefined)
+  }
 
   /**
    * Recall bounded background information for one turn.
