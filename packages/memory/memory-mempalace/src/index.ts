@@ -2,13 +2,12 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import { createInterface } from 'node:readline'
-import type { Interface as ReadLineInterface } from 'node:readline'
 import { fileURLToPath } from 'node:url'
 import { MemoryRuntime } from '@deepseek-ai/dsh-memory'
-import type { MemoryCaptureTurn, MemoryRecallItem, MemoryRecallRequest, MemoryRecallResult, MemoryStatus } from '@deepseek-ai/dsh-memory'
+import type { MemoryCaptureTurn, MemoryGraphRequest, MemoryGraphResult, MemoryRecallItem, MemoryRecallRequest, MemoryRecallResult, MemoryStatus } from '@deepseek-ai/dsh-memory'
 import type { SubprocessHandle } from '@deepseek-ai/dsh-subprocess'
 import type {} from '@deepseek-ai/dsh-subprocess'
+import { parseGraphResult, validateGraphRequest } from './graph.ts'
 
 /** Cordis plugin name. */
 export const name = 'memory-mempalace'
@@ -37,6 +36,16 @@ export interface Config {
   readonly maxFrameBytes?: number
   /** Managed-process termination grace in milliseconds. @default 2000 */
   readonly graceMs?: number
+  /** Maximum nodes accepted in one host graph response. @default 500 */
+  readonly maxGraphNodes?: number
+  /** Maximum edges accepted in one host graph response. @default 2000 */
+  readonly maxGraphEdges?: number
+  /** Maximum graph traversal depth. @default 4 */
+  readonly maxGraphHops?: number
+  /** Maximum serialized bytes accepted in one graph result. @default 524288 */
+  readonly maxGraphBytes?: number
+  /** Maximum palace metadata records inspected by one graph operation. @default 10000 */
+  readonly maxGraphScanRecords?: number
 }
 
 /** Schemastery validation for {@link Config}. */
@@ -49,8 +58,13 @@ export const Config: z<Config> = z.object({
   wing: z.string().default('wing_general'),
   maxPendingCaptures: z.number().step(1).min(1).max(10_000).default(256),
   requestTimeoutMs: z.number().step(1).min(1).max(300_000).default(10_000),
-  maxFrameBytes: z.number().step(1).min(1024).max(16_777_216).default(1_048_576),
+  maxFrameBytes: z.number().step(1).min(2048).max(16_777_216).default(1_048_576),
   graceMs: z.number().step(1).min(1).max(30_000).default(2000),
+  maxGraphNodes: z.number().step(1).min(1).max(5000).default(500),
+  maxGraphEdges: z.number().step(1).min(1).max(20_000).default(2000),
+  maxGraphHops: z.number().step(1).min(0).max(16).default(4),
+  maxGraphBytes: z.number().step(1).min(1024).max(8_388_608).default(524_288),
+  maxGraphScanRecords: z.number().step(1).min(1).max(100_000).default(10_000),
 })
 
 interface PendingRequest {
@@ -73,7 +87,7 @@ export class MemPalaceMemory extends MemoryRuntime {
   /** Schemastery configuration applied when the class is loaded as a plugin. */
   static Config = Config
   private handle: SubprocessHandle | undefined
-  private reader: ReadLineInterface | undefined
+  private responseBuffer = Buffer.alloc(0)
   private starting: Promise<void> | undefined
   private nextId = 1
   private readonly pending = new Map<number, PendingRequest>()
@@ -117,6 +131,20 @@ export class MemPalaceMemory extends MemoryRuntime {
       bytes += size
     }
     return { backend: 'mempalace', items, truncated }
+  }
+
+  async exploreGraph(request: MemoryGraphRequest, signal?: AbortSignal): Promise<MemoryGraphResult> {
+    validateGraphRequest(request, {
+      maxNodes: this.config.maxGraphNodes ?? 500,
+      maxEdges: this.config.maxGraphEdges ?? 2000,
+      maxHops: this.config.maxGraphHops ?? 4,
+      maxBytes: Math.min(this.config.maxGraphBytes ?? 524_288, (this.config.maxFrameBytes ?? 1_048_576) - 1024),
+    })
+    const raw = await this.request('graph', {
+      ...request,
+      maxScanRecords: this.config.maxGraphScanRecords ?? 10_000,
+    }, signal)
+    return parseGraphResult(raw, request, this.config.maxGraphScanRecords ?? 10_000)
   }
 
   async captureTurn(turn: MemoryCaptureTurn): Promise<void> {
@@ -212,6 +240,7 @@ export class MemPalaceMemory extends MemoryRuntime {
       if (this.config.collectionName !== undefined) argv.push('--collection', this.config.collectionName)
       if (this.config.backend !== undefined) argv.push('--backend', this.config.backend)
       argv.push('--wing', this.config.wing ?? 'wing_general')
+      argv.push('--max-frame-bytes', String(this.config.maxFrameBytes ?? 1_048_576))
       const handle = this.owner.subprocess.spawn({
         argv,
         cwd: process.cwd(),
@@ -221,8 +250,10 @@ export class MemPalaceMemory extends MemoryRuntime {
       if (handle.stdin === undefined || handle.stdout === undefined) throw new Error('worker pipes unavailable')
       this.handle = handle
       this.workerStarts += 1
-      this.reader = createInterface({ input: handle.stdout, crlfDelay: Infinity })
-      this.reader.on('line', line => { if (this.handle === handle) this.onLine(line) })
+      this.responseBuffer = Buffer.alloc(0)
+      handle.stdout.on('data', (chunk: Buffer | string) => {
+        if (this.handle === handle) this.onData(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      })
       handle.stdin.on('error', error => {
         if (this.handle === handle) this.failWorker(new Error(`memory-mempalace: worker stdin failed: ${error.message}`), handle)
       })
@@ -274,12 +305,33 @@ export class MemPalaceMemory extends MemoryRuntime {
     }
   }
 
+  private onData(chunk: Buffer): void {
+    const maximum = this.config.maxFrameBytes ?? 1_048_576
+    let offset = 0
+    while (offset < chunk.byteLength) {
+      const newline = chunk.indexOf(0x0A, offset)
+      const end = newline < 0 ? chunk.byteLength : newline
+      const segment = chunk.subarray(offset, end)
+      const bufferedBytes = this.responseBuffer.byteLength + segment.byteLength
+      if (bufferedBytes > maximum || (newline >= 0 && bufferedBytes >= maximum)) {
+        this.failWorker(new Error('memory-mempalace: worker response exceeded maxFrameBytes'))
+        return
+      }
+      if (segment.byteLength > 0) this.responseBuffer = Buffer.concat([this.responseBuffer, segment])
+      if (newline < 0) return
+      const line = this.responseBuffer.toString('utf8')
+      this.responseBuffer = Buffer.alloc(0)
+      this.onLine(line)
+      if (this.handle === undefined) return
+      offset = newline + 1
+    }
+  }
+
   private failWorker(error: Error, expected: SubprocessHandle | undefined = this.handle): void {
     if (expected !== undefined && this.handle !== expected) return
     const handle = this.handle
     this.handle = undefined
-    this.reader?.close()
-    this.reader = undefined
+    this.responseBuffer = Buffer.alloc(0)
     if (!this.stopping) {
       this.state = 'degraded'
       this.detail = error.message
@@ -298,13 +350,12 @@ export class MemPalaceMemory extends MemoryRuntime {
     try {
       await this.flush()
       if (this.handle !== undefined) {
-        try { await this.request('shutdown', {}) } catch {}
+        try { await this.request('shutdown', {}) } catch { /* worker failure is completed by forced termination below */ }
       }
     } finally {
       const handle = this.handle
       this.handle = undefined
-      this.reader?.close()
-      this.reader = undefined
+      this.responseBuffer = Buffer.alloc(0)
       handle?.terminate()
       if (handle !== undefined) {
         await handle.waitForExit(AbortSignal.timeout((this.config.graceMs ?? 2000) * 2))

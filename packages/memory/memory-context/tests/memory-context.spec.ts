@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { agentEvents, Inbox, type Agent } from '@deepseek-ai/dsh-agent'
 import { createAssistantMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
-import { MemoryRuntime, type MemoryCaptureTurn, type MemoryRecallRequest, type MemoryRecallResult, type MemoryStatus } from '@deepseek-ai/dsh-memory'
+import { MemoryRuntime, type MemoryCaptureTurn, type MemoryGraphResult, type MemoryRecallRequest, type MemoryRecallResult, type MemoryStatus } from '@deepseek-ai/dsh-memory'
 import { SessionId, SessionStore } from '@deepseek-ai/dsh-session'
 import { apply, deriveCompletedTurn, renderRecall } from '@deepseek-ai/dsh-memory-context'
 
@@ -16,6 +16,7 @@ class FakeMemory extends MemoryRuntime {
     this.recalls.push(request)
     return this.recallImpl === undefined ? this.recallResult : await this.recallImpl(request, signal)
   }
+  async exploreGraph(): Promise<MemoryGraphResult> { throw new Error('fake graph unsupported') }
   async captureTurn(turn: MemoryCaptureTurn): Promise<void> { this.captures.push(turn) }
   async flush(): Promise<void> {}
 }

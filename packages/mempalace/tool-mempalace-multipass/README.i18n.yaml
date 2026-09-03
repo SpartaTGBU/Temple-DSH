@@ -1,6 +1,0 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write packages/mempalace/tool-mempalace-multipass/README.md
-README.md: 27ce0c77db74278fe6a7e181e363b45e9cb9df7f
-README.zh.md: beb4dbe102bbbcd7c03c50853162caaa74fecf92

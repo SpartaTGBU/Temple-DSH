@@ -64,7 +64,6 @@ import * as ToolTeam from '@deepseek-ai/dsh-experimental-tool-agent-team'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import { registerListSubagentModels } from '../packages/subagent/tool-subagent/src/list-models.ts'
-import * as ToolMemPalaceMultipass from '@deepseek-ai/dsh-tool-mempalace-multipass'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
@@ -596,18 +595,6 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
       await ctx.plugin(ToolWorkflow)
     },
-  },
-  {
-    pkg: '@deepseek-ai/dsh-tool-mempalace-multipass',
-    dir: 'tool-mempalace-multipass',
-    source: 'packages/mempalace/tool-mempalace-multipass/src/index.ts',
-    requires: ['ctx.tools', 'MemPalace build_graph-compatible JSON supplied directly or from a local file'],
-    writes: ['tool/call', 'tool/result'],
-    async mount(ctx) {
-      await ctx.plugin(ToolMemPalaceMultipass)
-    },
-    note:
-      'mempalace_multipass_explore reads direct JSON or a bounded local JSON file and never executes MemPalace, Python, shell commands, or browser code.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

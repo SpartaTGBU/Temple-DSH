@@ -1,4 +1,4 @@
-# Agent Note: MemPalace multipass graph seam
+# Agent Note: provider-owned palace graph exploration
 
 Status: implemented
 
@@ -6,26 +6,26 @@ English | [中文](2026-09-02-mempalace-multipass-graph-seam.zh.md)
 
 ## Problem
 
-MemPalace exposes palace navigation through `palace_graph.build_graph()`, `traverse()`, and tunnel helpers, but DSH needs an opt-in integration that can explore that graph without becoming a second memory provider or executing arbitrary local code. A broad dashboard or provider would mix mining, recall, storage, and visualization concerns into one package and would overstate what upstream MemPalace currently exposes as a stable DSH service.
+Palace visualization needs structural data from the configured memory store, but inline graph JSON and arbitrary graph file paths let model or transport input replace the palace as the source of truth. A second MemPalace process or configuration authority would also diverge from recall and capture lifecycle.
 
 ## Decision
 
-DSH ships `@deepseek-ai/dsh-tool-mempalace-multipass` as a model-facing opt-in tool package. The package accepts MemPalace `build_graph()` JSON as `{ nodes, edges }`, `[nodes, edges]`, or an already-written local JSON file, validates it at the file/tool boundary, and normalizes it into `dsh.mempalace.multipass.graph.v1`. The export contains sorted room, wing, tunnel, bounded path, and renderer-neutral visualization DTOs. The tool does not run MemPalace, import Python, start a local service, fetch browser assets, or evaluate graph scripts.
+`MemoryRuntime.exploreGraph()` is a provider-neutral host operation. A trusted host consumer supplies only node, edge, hop, result-byte, and cancellation limits plus an optional start room. It cannot supply graph data, a path, Python, a command, or backend configuration. The operation returns `dsh.memory.graph.v1` renderer-neutral room and wing nodes, placement/tunnel/path edges, deterministic breadth-first visits, truncation, and counts.
 
-## Integration seam
+`MemPalaceMemory` implements the operation through its existing persistent worker and configured collection. The bridge pages collection metadata directly with a fixed scan ceiling rather than calling the unbounded upstream `build_graph()`. It bounds names, scan records, nodes, edges, hops, output bytes, JSONL frame bytes, and request time. TypeScript validates every worker field and all complete-result limits again. Cancellation or malformed/oversized protocol output terminates the worker; later recall, capture, or graph work starts one replacement.
 
-The seam is the graph export, not memory storage. MemPalace remains the owner of mining, palace persistence, drawer recall, hallway/tunnel construction, and Python traversal helpers. DSH owns only local JSON ingestion, stable TypeScript DTOs, tool lifecycle, and deterministic visualization hints a future UI can render. File ingestion is size-bounded and JSON-only, so a caller that wants live MemPalace state must produce the JSON outside this package through a reviewed workflow.
+The Dashboard branch can expose a typed authenticated host endpoint that calls `ctx.memory.exploreGraph(request, signal)` and forwards the DTO unchanged to a renderer. Browser code does not receive palace paths, collection credentials, worker controls, or provider-specific objects. This branch does not add that endpoint or UI.
 
 ## Alternatives considered
 
-**General memory provider** — Rejected because this branch is scoped to multi-hop palace exploration and graph visualization. A provider would need storage, recall, durability, privacy, and model-context contracts that are larger than the available upstream graph seam.
+**Model-facing tool** — Rejected. Structural visualization is a host/UI need, and a model tool would retain large graph results in session history without granting a necessary model capability.
 
-**Maintenance dashboard** — Rejected because status, repair, mining, and dashboard workflows belong to a different MemPalace integration. Adding them here would make the graph exploration package load more authority than it needs.
+**Inline JSON or graph file path** — Rejected because either makes caller-controlled data appear to be the configured palace and grants unnecessary file authority.
 
-**Run a configurable MemPalace command** — Rejected for this package because arbitrary command execution would create a local code-execution surface and would require Python environment discovery. A future provider can add a reviewed fixed command if upstream ships a JSON graph export command.
+**Second export process or local server** — Rejected because it duplicates provider discovery, backend selection, collection ownership, timeout, and teardown.
 
-**Bundle a browser renderer** — Rejected because the host package can expose a renderer-neutral DTO without choosing a CDN or vendored JavaScript asset. The consuming UI owns that tradeoff and can apply its own script review policy.
+**Upstream `build_graph()`** — Rejected for this operation because it can page the complete palace before DSH can enforce result limits. The reviewed bridge operation stops after a configured metadata scan ceiling.
 
 ## Consequences
 
-The integration is safe to compose locally and easy to remove: disposing the plugin unregisters the tool and leaves no background service. The cost is that the user or another trusted package must produce `build_graph()` JSON before DSH can explore it. Tests pin graph normalization, isolated wings and rooms, tunnel and path derivation, invalid input rejection, file ingestion, and registry cleanup.
+Graph acquisition shares the native provider's process, backend, collection, health, cancellation, restart, flush, and disposal lifecycle. Results are deterministic for a stable backend page order and contain no renderer coordinates. Partial scans or any node, edge, or byte trimming set `truncated`; callers can render partial state explicitly. Providers implementing `MemoryRuntime` must implement the graph operation, even if they reject it as unsupported.

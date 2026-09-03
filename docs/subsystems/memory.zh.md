@@ -14,9 +14,13 @@
 
 `captureTurn` 接收一组已完成用户/助手交换，以及会话、轮次、完成时间和可选 workspace。消费者只在 `completed` 的 `turn/end` 后提交直接用户文本和可见助手文本；默认排除插件消息、推理、工具流量和 subagent 会话。`flush` 等待已接受捕获工作。
 
+## 图探索
+
+`exploreGraph` 是针对已配置提供方的可信 host 操作。其请求包含可选起始 room，以及严格的节点、边、跳数和 UTF-8 结果字节上限；不能包含图数据、路径、命令、可执行文件或提供方配置。结果包含与 renderer 无关的 room/wing 节点、placement/tunnel/path 边、确定性广度优先访问、计数和明确的截断标记。Dashboard BFF endpoint 可在认证后转发此 DTO，并把请求取消绑定到 host signal，而不向浏览器暴露 MemPalace 进程或存储权限。
+
 ## 生命周期和安全
 
-MemPalace 提供方通过 `ctx.subprocess` 启动一个惰性 worker，以带请求 id 的 JSONL 帧通信，并在协议失败或请求超时后重启。捕获队列有固定最大值，并明确拒绝溢出。子进程 stderr、环境凭据和连接细节不会进入召回上下文。
+MemPalace 提供方通过 `ctx.subprocess` 启动一个惰性 worker，以带请求 id 的 JSONL 帧通信，并在协议失败或请求超时后重启。图获取复用该 worker 和 collection，在配置的扫描上限处停止 metadata 分页，在 Python 与 TypeScript 中应用结果上限，并在取消时终止 worker。捕获队列有固定最大值，并明确拒绝溢出。子进程 stderr、环境凭据和连接细节不会进入召回上下文或图数据。
 
 <!-- BEGIN GENERATED cordis-surface (gen-cordis-catalog.ts) — do not edit between markers -->
 
@@ -46,6 +50,16 @@ abstract status(): MemoryStatus
  * @returns provider-neutral recalled fragments within the requested bounds.
  */
 abstract recall(request: MemoryRecallRequest, signal?: AbortSignal): Promise<MemoryRecallResult>
+
+/**
+ * Acquire a bounded renderer-neutral graph from this configured backend.
+ * The provider must read its active store directly; callers cannot supply a
+ * graph, path, command, or executable.
+ * @param request - strict node, edge, hop, and serialized-byte limits.
+ * @param signal - optional cancellation for this acquisition.
+ * @returns deterministic graph and traversal data within every requested limit.
+ */
+abstract exploreGraph(request: MemoryGraphRequest, signal?: AbortSignal): Promise<MemoryGraphResult>
 
 /**
  * Enqueue one completed turn for durable capture.

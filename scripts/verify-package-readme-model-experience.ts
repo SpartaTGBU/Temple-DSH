@@ -63,6 +63,8 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/e2b/e2b': { kind: 'none', reason: 'The shared remote-runtime owner registers no model context; provider adapters and consumers own rendered effects.' },
   'packages/util/memory-meter': { kind: 'none', reason: 'Host memory-accounting library; measures session state and registers no model-facing input.' },
   'packages/runtime-diagnostics/memory-pressure': { kind: 'none', reason: 'Host memory-pressure detector; samples process memory and registers no model-facing input.' },
+  'packages/memory/memory': { kind: 'indirect', reason: 'The service interface delegates model rendering to lifecycle consumers such as dsh-memory-context.' },
+  'packages/memory/memory-mempalace': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-memory-context.' },
   'packages/session/session-residency': { kind: 'none', reason: 'Host session-eviction policy; decides residency and registers no model-facing input.' },
   'packages/session/session-residency-cache-release': { kind: 'none', reason: 'Host cache-release executor; reclaims derived caches and registers no model-facing input.' },
   'packages/client/hmr': { kind: 'none', reason: 'Browser-side UI plugin layer; registers nothing model-facing.' },

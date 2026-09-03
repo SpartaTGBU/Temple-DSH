@@ -40,7 +40,6 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
-| `@deepseek-ai/dsh-tool-mempalace-multipass` | `mempalace_multipass_explore` | `ctx.tools`, `MemPalace build_graph-compatible JSON supplied directly or from a local file` | `tool/call`, `tool/result` | - | mempalace_multipass_explore reads direct JSON or a bounded local JSON file and never executes MemPalace, Python, shell commands, or browser code. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -2227,41 +2226,6 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 ```
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
-
-<a id="deepseek-aidsh-tool-mempalace-multipass"></a>
-
-## `@deepseek-ai/dsh-tool-mempalace-multipass`
-
-### `mempalace_multipass_explore`
-
-Normalize MemPalace build_graph-compatible JSON and explore room-to-room paths across shared wings. Provide exactly one of graph_json (an object with nodes/edges or a [nodes, edges] array) or graph_json_path (a local JSON file already produced outside DSH). This tool does not execute MemPalace or arbitrary code.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "graph_json": {
-      "description": "MemPalace build_graph-compatible JSON: either {nodes, edges} or [nodes, edges]."
-    },
-    "graph_json_path": {
-      "type": "string",
-      "description": "Local path to a JSON file containing MemPalace build_graph-compatible JSON."
-    },
-    "start_room": {
-      "type": "string",
-      "description": "Optional room to use as the multi-hop exploration start."
-    },
-    "max_hops": {
-      "type": "integer",
-      "description": "Optional BFS hop depth. Defaults to 2."
-    }
-  }
-}
-```
-
-Source: [`packages/mempalace/tool-mempalace-multipass/src/index.ts`](../packages/mempalace/tool-mempalace-multipass/src/index.ts)
-
-mempalace_multipass_explore reads direct JSON or a bounded local JSON file and never executes MemPalace, Python, shell commands, or browser code.
 
 <a id="deepseek-aidsh-tool-web"></a>
 
