@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/graphify/tool-graphify/README.md
-README.md: aeade1f6c3f07cb8ac3a6dcb80403314f6333b60
-README.zh.md: e75bd2d8cf0ad298a750303cd82111122078f2f4
+README.md: a39ae7a38a4b5989c4b04f2b39672f1ee5f39a2f
+README.zh.md: 3189cab69c380edca1b1b89e6d81a408fe20a842

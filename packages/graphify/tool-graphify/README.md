@@ -52,7 +52,7 @@ Load this package only in profiles where the agent may maintain a Graphify graph
 
 ### What can go wrong
 
-A missing CLI returns `graphify CLI unavailable. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.` without forwarding host resolver details. Paths outside the session workspace are rejected before the binary is resolved. Indexing also rejects an existing `graphify-out` directory or graph symlink whose canonical target escapes the workspace, while allowing Graphify to create a missing contained output. Query operations require a regular, readable contained graph; run `graphify_index` first when it is missing. Non-zero Graphify exits are returned as tool successes with bounded stdout, bounded stderr, signal, timeout, and exit-code fields so the agent can inspect the CLI's own diagnostic.
+A missing CLI returns `graphify CLI unavailable. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.` without forwarding host resolver details. Paths outside the session workspace are rejected before the binary is resolved. Indexing rejects an existing `graphify-out` directory or graph symlink whose canonical target escapes the workspace, creates and canonicalizes a missing output directory before spawn, and revalidates the resulting regular readable graph after the process tree exits. Query operations require the same contained graph; run `graphify_index` first when it is missing. Non-zero exits, signals, and timeouts use the tool failure path after teardown; non-zero exits and signals include bounded CLI diagnostics.
 
 -----
 
@@ -64,7 +64,7 @@ A missing CLI returns `graphify CLI unavailable. Install the PyPI package 'graph
 
 The plugin is a model-facing Consumer over the subprocess seam. It resolves `binaryPath` through `ctx.subprocess.resolveExecutable`, spawns an argv array with `stdin: ignore`, and collects stdout/stderr under fixed byte caps. The subprocess provider removes credential-shaped ambient variables; the plugin explicitly passes only `GRAPHIFY_QUERY_LOG_DISABLE=1` to avoid writing a plaintext query log from model calls. It awaits whole-tree exit before publishing an outcome after normal completion, timeout, or cancellation.
 
-Workspace containment is checked with canonical paths. Relative paths resolve against the session cwd or configured `workspaceRoot`; absolute paths and symlink or junction targets must still realpath under that root. Query operations construct and canonicalize `graphify-out/graph.json`, require a regular readable file, and never accept a model-provided graph path.
+Workspace containment is checked with canonical paths. Relative paths resolve against the session cwd or configured `workspaceRoot`; absolute paths and existing symlink or junction targets must still realpath under that root. Query operations construct and canonicalize `graphify-out/graph.json`, require a regular readable file, and never accept a model-provided graph path. Index operations repeat that check after Graphify exits, before reporting success; this narrows but cannot eliminate filesystem replacement races during an external process.
 
 ### Source map
 
@@ -111,7 +111,7 @@ Prefix-stable while the tool visibility and config-dependent schema text are unc
 
 #### What the model sees
 
-Successful CLI exits render newline-normalized stdout with trailing whitespace removed, or `<operation> completed.` when stdout is empty. Failed CLI exits render `graphify <operation> failed.`, stdout, a `[stderr]` section when present, truncation markers, and timeout/signal/exit markers. The canonical JSON value also carries the argv tail, workspace root, target or graph path, bounded stdout/stderr, and process outcome fields; private collector spill paths and executable-resolution diagnostics are not model-visible.
+Successful CLI exits render newline-normalized stdout with trailing whitespace removed, or `<operation> completed.` when stdout is empty. Their canonical JSON value also carries the argv tail, workspace root, target or graph path, bounded stdout/stderr, and process outcome fields. Non-zero exits and signals render `graphify <operation> failed.`, stdout, a `[stderr]` section when present, truncation markers, and signal/exit markers through the tool failure path. Private collector spill paths and executable-resolution diagnostics are not model-visible.
 
 #### Token effect
 
@@ -125,7 +125,7 @@ Append-only; returned text follows the reusable request prefix and does not inva
 
 #### What the model sees
 
-Validation, workspace escape, missing graph, missing binary, and pre-spawn cancellation return `Error: <message>` through the normal tool failure path.
+Validation, workspace escape, missing graph, missing binary, non-zero exit, signal, timeout, and cancellation return `Error: <message>` through the normal tool failure path.
 
 #### Token effect
 

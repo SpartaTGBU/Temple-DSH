@@ -2899,7 +2899,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/graphify/tool-graphify/src/index.ts:32`](../packages/graphify/tool-graphify/src/index.ts)
+来源：[`packages/graphify/tool-graphify/src/index.ts:33`](../packages/graphify/tool-graphify/src/index.ts)
 
 <a id="deepseek-aidsh-tool-jobs"></a>
 

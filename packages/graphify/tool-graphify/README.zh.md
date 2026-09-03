@@ -52,7 +52,7 @@ kind: "package-reference"
 
 ### 可能出错的情况
 
-缺少 CLI 时返回 `graphify CLI unavailable. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.`，且不会转发宿主解析器细节。工作区外路径会在解析二进制前被拒绝。索引还会拒绝规范目标逃逸工作区的既有 `graphify-out` 目录或图符号链接，同时允许 Graphify 创建缺失的工作区内输出。查询操作要求图是工作区内的普通可读文件；缺失时先运行 `graphify_index`。Graphify 非零退出会作为工具成功结果返回，并携带有界 stdout、有界 stderr、signal、timeout 和 exit-code 字段，供代理检查 CLI 自身诊断。
+缺少 CLI 时返回 `graphify CLI unavailable. Install the PyPI package 'graphifyy' or set tool-graphify.binaryPath.`，且不会转发宿主解析器细节。工作区外路径会在解析二进制前被拒绝。索引会拒绝规范目标逃逸工作区的既有 `graphify-out` 目录或图符号链接，在启动进程前创建并规范化缺失的输出目录，并在进程树退出后重新验证生成的图是普通可读文件。查询操作要求同一个工作区内图；缺失时先运行 `graphify_index`。非零退出、signal 和 timeout 会在清理后进入工具失败路径；非零退出和 signal 会携带有界 CLI 诊断。
 
 -----
 
@@ -64,7 +64,7 @@ kind: "package-reference"
 
 插件是 subprocess seam 之上的模型可见 Consumer。它通过 `ctx.subprocess.resolveExecutable` 解析 `binaryPath`，用 argv 数组启动进程，`stdin: ignore`，并在固定字节上限下收集 stdout/stderr。subprocess provider 会删除名称形似凭据的环境变量；插件只显式传入 `GRAPHIFY_QUERY_LOG_DISABLE=1`，避免模型调用写入明文查询日志。正常完成、超时或取消后，它会等待整个进程树退出再发布结果。
 
-工作区包含关系使用规范路径检查。相对路径基于会话 cwd 或配置的 `workspaceRoot` 解析；绝对路径以及符号链接或 junction 的目标仍必须 realpath 到该根目录下。查询操作在内部构造并规范化 `graphify-out/graph.json`，要求它是普通可读文件，并且从不接受模型提供的图路径。
+工作区包含关系使用规范路径检查。相对路径基于会话 cwd 或配置的 `workspaceRoot` 解析；绝对路径以及既有符号链接或 junction 的目标仍必须 realpath 到该根目录下。查询操作在内部构造并规范化 `graphify-out/graph.json`，要求它是普通可读文件，并且从不接受模型提供的图路径。索引操作在 Graphify 退出后、报告成功前重复此检查；这会缩小但无法消除外部进程运行期间的文件系统替换竞态。
 
 ### 源码地图
 
@@ -111,7 +111,7 @@ kind: "package-reference"
 
 #### 模型看到什么
 
-CLI 成功退出时渲染换行已规范化且去除尾随空白的 stdout；stdout 为空时渲染 `<operation> completed.`。CLI 失败退出时渲染 `graphify <operation> failed.`、stdout、存在时的 `[stderr]` 段、截断标记以及 timeout/signal/exit 标记。规范 JSON 值还携带 argv tail、工作区根、目标或图路径、有界 stdout/stderr 和进程结果字段；模型看不到收集器的私有溢出路径或可执行文件解析诊断。
+CLI 成功退出时渲染换行已规范化且去除尾随空白的 stdout；stdout 为空时渲染 `<operation> completed.`。成功结果的规范 JSON 值还携带 argv tail、工作区根、目标或图路径、有界 stdout/stderr 和进程结果字段。非零退出和 signal 通过工具失败路径渲染 `graphify <operation> failed.`、stdout、存在时的 `[stderr]` 段、截断标记以及 signal/exit 标记。模型看不到收集器的私有溢出路径或可执行文件解析诊断。
 
 #### Token 影响
 
@@ -125,7 +125,7 @@ CLI 成功退出时渲染换行已规范化且去除尾随空白的 stdout；std
 
 #### 模型看到什么
 
-验证、工作区逃逸、缺少图、缺少二进制和启动前取消通过普通工具失败路径返回 `Error: <message>`。
+验证、工作区逃逸、缺少图、缺少二进制、非零退出、signal、timeout 和取消通过普通工具失败路径返回 `Error: <message>`。
 
 #### Token 影响
 

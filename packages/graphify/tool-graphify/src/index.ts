@@ -9,7 +9,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { constants } from 'node:fs'
-import { access, lstat, realpath, stat } from 'node:fs/promises'
+import { access, lstat, mkdir, realpath, stat } from 'node:fs/promises'
 import { isAbsolute, relative, resolve } from 'node:path'
 import { defineTool, TOOL_ABORTED } from '@deepseek-ai/dsh-tools'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
@@ -176,13 +176,19 @@ async function isTrulyMissing(path: string): Promise<boolean> {
 
 async function graphPathFor(workspaceRoot: string, requireExisting: boolean): Promise<string> {
   const outputPath = resolve(workspaceRoot, GRAPHIFY_OUT)
-  const requested = resolve(outputPath, GRAPH_JSON)
   let canonicalOutput: string
   try {
     canonicalOutput = await realpath(outputPath)
   } catch (error) {
-    if (!requireExisting && isMissing(error) && await isTrulyMissing(outputPath)) return requested
-    throw new Error('graphify graph is unavailable; run graphify_index for this workspace first')
+    if (requireExisting || !isMissing(error) || !await isTrulyMissing(outputPath)) {
+      throw new Error('graphify graph is unavailable; run graphify_index for this workspace first')
+    }
+    try {
+      await mkdir(outputPath)
+      canonicalOutput = await realpath(outputPath)
+    } catch {
+      throw new Error('graphify-out could not be created inside the session workspace')
+    }
   }
   const outputInfo = await stat(canonicalOutput)
   if (!outputInfo.isDirectory()) throw new Error('graphify-out must be a directory inside the session workspace')
@@ -325,6 +331,11 @@ function renderCliResult(value: CliRunResult): string {
   return lines.join('\n')
 }
 
+function assertCliSuccess(value: CliRunResult, timeoutMs: number): void {
+  if (value.timedOut) throw new Error(`graphify operation timed out after ${timeoutMs} ms`)
+  if (value.signal !== null || value.exitCode !== 0) throw new Error(renderCliResult(value))
+}
+
 function assertQueryArgs(args: GraphifyQueryArgs): void {
   if (args.budget !== undefined) assertPositiveInteger('budget', args.budget)
   switch (args.operation) {
@@ -406,8 +417,12 @@ export function apply(ctx: Context, config: Config = {}): void {
           ...((args.no_cluster ?? true) ? ['--no-cluster'] : []),
         ]
         : ['update', workspaceRoot]
-      const result = await runCli(ctx, resolved, exec.signal, workspaceRoot, argv, resolveTimeout(args.timeoutMs, resolved))
-      return { kind: 'index' as const, operation: args.operation, workspaceRoot, targetPath, argv, ...result }
+      const timeoutMs = resolveTimeout(args.timeoutMs, resolved)
+      const result = await runCli(ctx, resolved, exec.signal, workspaceRoot, argv, timeoutMs)
+      const value = { kind: 'index' as const, operation: args.operation, workspaceRoot, targetPath, argv, ...result }
+      assertCliSuccess(value, timeoutMs)
+      const graphPath = await graphPathFor(workspaceRoot, true)
+      return { ...value, graphPath }
     },
     presentCall: (args: GraphifyIndexArgs) => ({ card: 'generic', title: `Graphify ${args.operation}`, kind: 'execute', rawInput: args as unknown as JsonValue }),
     isConcurrencySafe: () => false,
@@ -448,11 +463,13 @@ export function apply(ctx: Context, config: Config = {}): void {
           argv = ['path', args.source as string, args.target as string, '--graph', graphPath]
           break
       }
-      const result = await runCli(ctx, resolved, exec.signal, workspaceRoot, argv, resolveTimeout(args.timeoutMs, resolved))
-      return { kind: 'query' as const, operation: args.operation, workspaceRoot, graphPath, argv, ...result }
+      const timeoutMs = resolveTimeout(args.timeoutMs, resolved)
+      const result = await runCli(ctx, resolved, exec.signal, workspaceRoot, argv, timeoutMs)
+      const value = { kind: 'query' as const, operation: args.operation, workspaceRoot, graphPath, argv, ...result }
+      assertCliSuccess(value, timeoutMs)
+      return value
     },
     presentCall: (args: GraphifyQueryArgs) => ({ card: 'generic', title: `Graphify ${args.operation}`, kind: 'search', rawInput: args as unknown as JsonValue }),
     isConcurrencySafe: () => true,
   }))
 }
-

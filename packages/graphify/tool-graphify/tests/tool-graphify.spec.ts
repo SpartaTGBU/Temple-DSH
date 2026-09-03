@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -36,6 +36,7 @@ class FakeSubprocess extends SubprocessRuntime {
   lossy = false
   treeExited = true
   waitForExitCalls = 0
+  afterExit: (() => void) | undefined
 
   resolveExecutable(command: string, env?: Readonly<Record<string, string>>, signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted()
@@ -62,6 +63,12 @@ class FakeSubprocess extends SubprocessRuntime {
       terminate: () => {},
       waitForExit: () => {
         this.waitForExitCalls++
+        if (this.afterExit !== undefined) {
+          this.afterExit()
+        } else if (this.exitCode === 0 && this.signal === null && (spec.argv.includes('extract') || spec.argv.includes('update'))) {
+          mkdirSync(join(spec.cwd, 'graphify-out'), { recursive: true })
+          writeFileSync(join(spec.cwd, 'graphify-out', 'graph.json'), '{"nodes":[],"links":[]}')
+        }
         return Promise.resolve(this.treeExited)
       },
     }
@@ -281,6 +288,17 @@ describe('graphify tools', () => {
     expect(subprocess.spawns).toHaveLength(1)
   })
 
+  it('creates and canonicalizes a missing output directory before starting Graphify', async () => {
+    const root = workspace()
+    const { ctx, subprocess } = await setup(root)
+
+    const result = await call(ctx, 'graphify_index', { operation: 'index' })
+
+    expect(result.isError).toBe(false)
+    expect(realpathSync(join(root, 'graphify-out'))).toBe(join(root, 'graphify-out'))
+    expect(subprocess.spawns).toHaveLength(1)
+  })
+
   it('rejects a broken graph symlink instead of treating it as a new contained target', async () => {
     const root = workspace()
     const outside = workspace()
@@ -307,7 +325,7 @@ describe('graphify tools', () => {
     expect(subprocess.spawns[0]?.signal?.aborted).toBe(true)
   })
 
-  it('enforces the configured deadline and preserves timeout classification after teardown', async () => {
+  it('enforces the configured deadline and reports a tool error after teardown', async () => {
     const root = workspace()
     const ctx = new Context()
     await ctx.plugin(SystemPrompt)
@@ -319,9 +337,8 @@ describe('graphify tools', () => {
 
     const result = await call(ctx, 'graphify_index', { operation: 'update' })
 
-    expect(result.isError).toBe(false)
-    if (result.isError) throw new Error('expected classified CLI outcome')
-    expect(result.value).toMatchObject({ timedOut: true, aborted: false, signal: 'SIGTERM' })
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('timed out after 5 ms')
     expect(subprocess.spawns[0]?.signal?.aborted).toBe(true)
     expect(subprocess.waitForExitCalls).toBe(1)
   })
@@ -351,17 +368,31 @@ describe('graphify tools', () => {
     expect(ctx.tools.executionMode(execution('graphify_query', { operation: 'query', question: 'x' }))).toEqual({ kind: 'parallel' })
   })
 
-  it('reports non-zero CLI exits as successful tool calls with exit details', async () => {
+  it('reports non-zero CLI exits through the tool failure path with bounded diagnostics', async () => {
     const { ctx, subprocess } = await setup()
     subprocess.exitCode = 2
     subprocess.stdout = 'partial\n'
     subprocess.stderr = 'bad args\n'
     const result = await call(ctx, 'graphify_index', { operation: 'update' })
 
-    expect(result.isError).toBe(false)
-    if (result.isError) throw new Error('expected infrastructure success')
-    expect(result.value).toMatchObject({ exitCode: 2, stderr: { text: 'bad args\n' } })
-    expect(text(result)).toBe('graphify update failed.\npartial\n[stderr]\nbad args\n[exit code: 2]')
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('graphify update failed.\npartial\n[stderr]\nbad args\n[exit code: 2]')
+  })
+
+  it('revalidates the produced graph after indexing and rejects an escaped output junction', async () => {
+    const root = workspace()
+    const outside = workspace()
+    const { ctx, subprocess } = await setup(root)
+    subprocess.afterExit = () => {
+      rmSync(join(root, 'graphify-out'), { recursive: true })
+      symlinkSync(outside, join(root, 'graphify-out'), 'junction')
+    }
+
+    const result = await call(ctx, 'graphify_index', { operation: 'index' })
+
+    expect(result.isError).toBe(true)
+    expect(text(result)).toContain('must remain inside')
+    expect(subprocess.waitForExitCalls).toBe(1)
   })
 
   it('normalizes platform newlines and renders collector truncation deterministically', async () => {
