@@ -28,6 +28,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-fs-search` | `glob`, `grep` | `ctx.tools`, `ctx.subprocess`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | glob and grep are unconditional discovery tools that spawn the packaged ripgrep binary (`@vscode/ripgrep`) through ctx.subprocess as ordinary foreground calls (never background jobs) — no host `rg` install and no shell layer. The catalog uses `sampleOverCapGlobResults: true`; deployments must choose that behavior explicitly. Capped results save the complete formatted list through the optional ctx.spillStore backend; returned locators are follow-up-readable/searchable when the backend exposes local paths in co-located deployments. |
 | `@deepseek-ai/dsh-tool-terminal` | `terminal_close`, `terminal_list`, `terminal_open`, `terminal_read`, `terminal_send`, `terminal_signal` | `ctx.tools`, `ctx.terminals`, `ctx.systemPrompt`, `ctx.jobs at call time for run_in_background` | `tool/call`, `tool/result` | - | The six terminal tools are opt-in and complement one-shot shell/filesystem tools. `terminal_send(run_in_background: true)` registers with `ctx.jobs`; TUI, named key sequences, BEL, resize, auto-start, and cross-agent sharing are absent from the schema. |
 | `@deepseek-ai/dsh-tool-goal` | `create_goal`, `get_goal`, `update_goal` | `ctx.tools`, `ctx.agents`, `ctx.goals`, `ctx.systemPrompt`, `a calling Agent in an authorized open turn` | `tool/call`, `goal/change for mutations`, `tool/result` | - | create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds. |
+| `@deepseek-ai/dsh-tool-graphify` | `graphify_index`, `graphify_query` | `ctx.tools`, `ctx.subprocess`, `Graphify CLI at execution time`, `a session workspace for ordinary agent calls` | `tool/call`, `graphify-out/graph.json for graphify_index`, `tool/result` | - | Opt-in bridge to the external Graphify CLI. The tools construct argv arrays through ctx.subprocess, reject paths outside the session workspace, disable Graphify query logging for model calls, and keep the Graphify Python package out of the Harness runtime. |
 | `@deepseek-ai/dsh-schedule` | `schedule_create`, `schedule_delete`, `schedule_list` | `ctx.tools`, `ctx.sessions`, `Session persistence`, `a future live root Agent` | `tool/call`, `schedule/change create or delete`, `tool/result` | - | Registered only inside live root Agent scopes created after the opt-in Schedule plugin loads. Version 1 accepts after_seconds, explicit absolute at, and bounded fixed-rate every_seconds, and discloses session-local delivery; management reads and mutations require the shared Session persistence barrier. |
 | `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`, `ctx.lsp`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | The lsp tool keeps provider selection and language-server subprocesses behind ctx.lsp, so its model-visible schema stays stable across providers. Requires a registered provider (e.g. `@deepseek-ai/dsh-lsp-stdio`) at runtime; without one, a query returns the structured `LSP_UNAVAILABLE` error rather than changing the schema. |
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
@@ -1096,6 +1097,114 @@ Update the exact current goal revision. edit, pause, and resume require a direct
 Source: [`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds.
+
+<a id="deepseek-aidsh-tool-graphify"></a>
+
+## `@deepseek-ai/dsh-tool-graphify`
+
+### `graphify_index`
+
+Build or update the current workspace Graphify code graph. Use index for the first build and update after source changes. Paths must stay inside the session workspace.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "index builds graphify-out/graph.json; update refreshes changed files in an existing graph.",
+      "enum": [
+        "index",
+        "update"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "description": "Workspace-relative directory to index. Valid only for index; defaults to \".\"."
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "description": "Optional positive timeout in milliseconds, capped by plugin config."
+    },
+    "code_only": {
+      "type": "boolean",
+      "description": "For index only, pass --code-only. Defaults true to avoid LLM-backed document/media extraction."
+    },
+    "no_cluster": {
+      "type": "boolean",
+      "description": "For index only, pass --no-cluster. Defaults true for a fast local-only initial graph."
+    }
+  },
+  "required": [
+    "operation"
+  ]
+}
+```
+
+Source: [`packages/graphify/tool-graphify/src/index.ts`](../packages/graphify/tool-graphify/src/index.ts)
+
+### `graphify_query`
+
+Query the current workspace Graphify graph. Use query for broad questions, explain for one node, and path to trace a relationship between two nodes.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "Graphify read operation.",
+      "enum": [
+        "query",
+        "explain",
+        "path"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "description": "Required for operation=query."
+    },
+    "node": {
+      "type": "string",
+      "description": "Required for operation=explain."
+    },
+    "source": {
+      "type": "string",
+      "description": "Required for operation=path."
+    },
+    "target": {
+      "type": "string",
+      "description": "Required for operation=path."
+    },
+    "budget": {
+      "type": "integer",
+      "description": "Positive approximate token budget for query output."
+    },
+    "dfs": {
+      "type": "boolean",
+      "description": "For operation=query, use DFS instead of BFS."
+    },
+    "context": {
+      "type": "array",
+      "description": "For operation=query, relation contexts such as call, import, field, parameter_type, return_type, or generic_arg.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "description": "Optional positive timeout in milliseconds, capped by plugin config."
+    }
+  },
+  "required": [
+    "operation"
+  ]
+}
+```
+
+Source: [`packages/graphify/tool-graphify/src/index.ts`](../packages/graphify/tool-graphify/src/index.ts)
+
+Opt-in bridge to the external Graphify CLI. The tools construct argv arrays through ctx.subprocess, reject paths outside the session workspace, disable Graphify query logging for model calls, and keep the Graphify Python package out of the Harness runtime.
 
 <a id="deepseek-aidsh-schedule"></a>
 

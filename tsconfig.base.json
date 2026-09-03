@@ -522,6 +522,8 @@
       "@deepseek-ai/dsh-tool-fs-search/invariant": ["./packages/fs/tool-fs-search/src/invariant.ts"],
       "@deepseek-ai/dsh-tool-goal": ["./packages/goal/tool-goal/src"],
       "@deepseek-ai/dsh-tool-goal/invariant": ["./packages/goal/tool-goal/src/invariant.ts"],
+      "@deepseek-ai/dsh-tool-graphify": ["./packages/graphify/tool-graphify/src"],
+      "@deepseek-ai/dsh-tool-graphify/invariant": ["./packages/graphify/tool-graphify/src/invariant.ts"],
       "@deepseek-ai/dsh-tool-jobs": ["./packages/jobs/tool-jobs/src"],
       "@deepseek-ai/dsh-tool-jobs/invariant": ["./packages/jobs/tool-jobs/src/invariant.ts"],
       "@deepseek-ai/dsh-tool-lsp": ["./packages/lsp/tool-lsp/src"],

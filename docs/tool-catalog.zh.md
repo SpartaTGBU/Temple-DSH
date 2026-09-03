@@ -32,6 +32,7 @@
 | `@deepseek-ai/dsh-tool-fs-search` | `glob`、`grep` | `ctx.tools`、`ctx.subprocess`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn 随包提供的 ripgrep 二进制文件（`@vscode/ripgrep`），并作为普通前台调用运行，绝不作为后台任务；无需在宿主机安装 `rg`，也不经过 shell 层。本目录使用 `sampleOverCapGlobResults: true`；部署必须显式选择该行为。结果超过上限时，会通过可选的 ctx.spillStore 后端保存完整的格式化列表；在共置部署中，如果后端公开本地路径，返回的定位信息可供后续读取／搜索。 |
 | `@deepseek-ai/dsh-tool-terminal` | `terminal_close`、`terminal_list`、`terminal_open`、`terminal_read`、`terminal_send`、`terminal_signal` | `ctx.tools`、`ctx.terminals`、`ctx.systemPrompt`、`ctx.jobs at call time for run_in_background` | `tool/call`、`tool/result` | - | 这 6 个终端工具需要选择启用，用于补充一次性 bash／文件系统工具。`terminal_send(run_in_background: true)` 会注册到 `ctx.jobs`；schema 不包含 TUI、具名按键序列、BEL、调整尺寸、自动启动和跨 agent 共享。 |
 | `@deepseek-ai/dsh-tool-goal` | `create_goal`、`get_goal`、`update_goal` | `ctx.tools`、`ctx.agents`、`ctx.goals`、`ctx.systemPrompt`、`a calling Agent in an authorized open turn` | `tool/call`、`goal/change for mutations`、`tool/result` | - | create、edit、pause 和 resume 要求直接来自人类的根权限；complete 和 blocked 也接受确切的当前 Goal Round。blocked 的默认下限是 3 个获准的 Round。 |
+| `@deepseek-ai/dsh-tool-graphify` | `graphify_index`、`graphify_query` | `ctx.tools`、`ctx.subprocess`、`Graphify CLI at execution time`、`a session workspace for ordinary agent calls` | `tool/call`、`graphify-out/graph.json for graphify_index`、`tool/result` | - | 到外部 Graphify CLI 的可选桥接。工具通过 ctx.subprocess 构造 argv 数组，拒绝会话工作区外路径，为模型调用关闭 Graphify 查询日志，并把 Graphify Python 包留在 Harness 运行时之外。 |
 | `@deepseek-ai/dsh-schedule` | `schedule_create`、`schedule_delete`、`schedule_list` | `ctx.tools`、`ctx.sessions`、Session 持久化、未来创建的 live 根 Agent | `tool/call`、`schedule/change create or delete`、`tool/result` | - | 仅在选择启用的 Schedule 插件加载后创建的 live 根 Agent scope 内注册。版本 1 接受 after_seconds、显式绝对 at 和有界固定速率 every_seconds，并披露 session-local 交付；管理读取与变更必须通过共享的 Session 持久化 barrier。 |
 | `@deepseek-ai/dsh-tool-lsp` | `lsp` | `ctx.tools`、`ctx.lsp`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，因此其模型可见 schema 在更换提供方时保持稳定。运行时要求已注册提供方，例如 `@deepseek-ai/dsh-lsp-stdio`；如果没有提供方，查询会返回结构化 `LSP_UNAVAILABLE` 错误，而不会改变 schema。 |
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`、`ctx.workflowEngine`、`ctx.subagents`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents every fresh round)` | `tool/call`、`tool/result`、`workflow and child session events during execution` | - | 固定的前台工作流会在每个 Round 启动一个全新的结构化子级；模型只能选择不可变目标和可选的 Round 上限。 |
@@ -1102,6 +1103,114 @@ glob 和 grep 是无条件可用的发现工具，通过 ctx.subprocess spawn �
 来源：[`packages/goal/tool-goal/src/index.ts`](../packages/goal/tool-goal/src/index.ts)
 
 create、edit、pause 和 resume 要求直接来自人类的根权限；complete 和 blocked 也接受确切的当前 Goal Round。blocked 的默认下限是 3 个获准的 Round。
+
+<a id="deepseek-aidsh-tool-graphify"></a>
+
+## `@deepseek-ai/dsh-tool-graphify`
+
+### `graphify_index`
+
+构建或更新当前工作区 Graphify 代码图。首次构建使用 index，源码变更后使用 update。路径必须留在会话工作区内。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "index builds graphify-out/graph.json; update refreshes changed files in an existing graph.",
+      "enum": [
+        "index",
+        "update"
+      ]
+    },
+    "path": {
+      "type": "string",
+      "description": "Workspace-relative directory to index. Valid only for index; defaults to \".\"."
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "description": "Optional positive timeout in milliseconds, capped by plugin config."
+    },
+    "code_only": {
+      "type": "boolean",
+      "description": "For index only, pass --code-only. Defaults true to avoid LLM-backed document/media extraction."
+    },
+    "no_cluster": {
+      "type": "boolean",
+      "description": "For index only, pass --no-cluster. Defaults true for a fast local-only initial graph."
+    }
+  },
+  "required": [
+    "operation"
+  ]
+}
+```
+
+来源：[`packages/graphify/tool-graphify/src/index.ts`](../packages/graphify/tool-graphify/src/index.ts)
+
+### `graphify_query`
+
+查询当前工作区 Graphify 图。广泛问题使用 query，单个节点使用 explain，追踪两个节点之间的关系使用 path。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "operation": {
+      "type": "string",
+      "description": "Graphify read operation.",
+      "enum": [
+        "query",
+        "explain",
+        "path"
+      ]
+    },
+    "question": {
+      "type": "string",
+      "description": "Required for operation=query."
+    },
+    "node": {
+      "type": "string",
+      "description": "Required for operation=explain."
+    },
+    "source": {
+      "type": "string",
+      "description": "Required for operation=path."
+    },
+    "target": {
+      "type": "string",
+      "description": "Required for operation=path."
+    },
+    "budget": {
+      "type": "integer",
+      "description": "Positive approximate token budget for query output."
+    },
+    "dfs": {
+      "type": "boolean",
+      "description": "For operation=query, use DFS instead of BFS."
+    },
+    "context": {
+      "type": "array",
+      "description": "For operation=query, relation contexts such as call, import, field, parameter_type, return_type, or generic_arg.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "timeoutMs": {
+      "type": "integer",
+      "description": "Optional positive timeout in milliseconds, capped by plugin config."
+    }
+  },
+  "required": [
+    "operation"
+  ]
+}
+```
+
+来源：[`packages/graphify/tool-graphify/src/index.ts`](../packages/graphify/tool-graphify/src/index.ts)
+
+到外部 Graphify CLI 的可选桥接。工具通过 ctx.subprocess 构造 argv 数组，拒绝会话工作区外路径，为模型调用关闭 Graphify 查询日志，并把 Graphify Python 包留在 Harness 运行时之外。
 
 <a id="deepseek-aidsh-schedule"></a>
 

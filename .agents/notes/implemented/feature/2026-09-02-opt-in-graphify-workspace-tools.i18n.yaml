@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-02-opt-in-graphify-workspace-tools.md
+2026-09-02-opt-in-graphify-workspace-tools.md: c1946e02085f45b7c75bdfed2829c45c9843c12a
+2026-09-02-opt-in-graphify-workspace-tools.zh.md: ceb83d205ed7e69a0ebebfa14ef8134d1388735e
