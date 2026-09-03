@@ -6,6 +6,7 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
+import type { MemPalaceDashboardSnapshot } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { MemPalaceDashboardSection } from '../src/client/MemPalaceDashboardSection.tsx'
 import type { MemPalaceDashboardSectionInjected, MemPalaceDashboardSectionProps } from '../src/client/MemPalaceDashboardSection.tsx'
@@ -13,7 +14,11 @@ import type { MemPalaceDashboardSectionInjected, MemPalaceDashboardSectionProps 
 usePinnedBrowserLanguages('zh-CN')
 afterEach(cleanup)
 
-const SNAPSHOT = {
+type AvailableProviderSnapshot = Omit<MemPalaceDashboardSnapshot, 'provider'> & {
+  readonly provider: Extract<MemPalaceDashboardSnapshot['provider'], { readonly available: true }>
+}
+
+const SNAPSHOT: AvailableProviderSnapshot = {
   generatedAt: '2026-01-01T00:00:00Z',
   provider: { available: true, value: { state: 'ready', backend: 'mempalace', pendingCaptures: 0, workerStarts: 1 } },
   location: {
@@ -31,7 +36,7 @@ const SNAPSHOT = {
   knowledgeGraph: { available: false, reason: 'knowledge-graph-not-found', message: 'missing' },
   health: { available: false, reason: 'palace-not-found', message: 'missing' },
   retrievalTransparency: { available: false, reason: 'retrieval-traces-not-persisted', message: 'not persisted' },
-} as const
+}
 
 async function bench() {
   const ctx = new Context()
