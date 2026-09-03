@@ -50,6 +50,7 @@ import * as ToolCordis from '@deepseek-ai/dsh-tool-cordis'
 import * as ToolFs from '@deepseek-ai/dsh-tool-fs'
 import * as ToolFsSearch from '@deepseek-ai/dsh-tool-fs-search'
 import * as ToolStrReplaceEditor from '@deepseek-ai/dsh-tool-str-replace-editor'
+import * as ToolGraphify from '@deepseek-ai/dsh-tool-graphify'
 import TerminalSessionService from '@deepseek-ai/dsh-terminal'
 import * as ToolPty from '@deepseek-ai/dsh-tool-terminal'
 import * as ToolGoal from '@deepseek-ai/dsh-tool-goal'
@@ -373,6 +374,19 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
     note:
       'create, edit, pause, and resume require direct-human root authority; complete and blocked also accept the exact current goal round. The default blocked lower bound is three admitted rounds.',
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-graphify',
+    dir: 'tool-graphify',
+    source: 'packages/graphify/tool-graphify/src/index.ts',
+    requires: ['ctx.tools', 'ctx.subprocess', 'Graphify CLI at execution time', 'a session workspace for ordinary agent calls'],
+    writes: ['tool/call', 'graphify-out/graph.json for graphify_index', 'tool/result'],
+    async mount(ctx) {
+      await ctx.plugin(LocalSubprocessRuntime)
+      await ctx.plugin(ToolGraphify)
+    },
+    note:
+      'Opt-in bridge to the external Graphify CLI. The tools construct argv arrays through ctx.subprocess, reject paths outside the session workspace, disable Graphify query logging for model calls, and keep the Graphify Python package out of the Harness runtime.',
   },
   {
     pkg: '@deepseek-ai/dsh-schedule',

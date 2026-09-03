@@ -2873,6 +2873,34 @@ export interface Config {
 
 来源：[`packages/goal/tool-goal/src/index.ts:26`](../packages/goal/tool-goal/src/index.ts)
 
+<a id="deepseek-aidsh-tool-graphify"></a>
+
+## `@deepseek-ai/dsh-tool-graphify`
+
+需要：`tools` · `subprocess`
+
+```ts config-catalog
+/** Model-facing Graphify plugin configuration. */
+export interface Config {
+  /** Bare command or absolute executable path for the Graphify CLI. */
+  binaryPath?: string
+  /** Fixed arguments inserted after the resolved executable and before Graphify operation arguments. */
+  binaryArgs?: string[]
+  /** Fallback workspace root used only when the caller has no agent session cwd. */
+  workspaceRoot?: string
+  /** Default timeout for each CLI operation, in milliseconds. */
+  timeoutMs?: number
+  /** Maximum accepted per-call timeout override, in milliseconds. */
+  maxTimeoutMs?: number
+  /** Per-stream collected output cap. */
+  maxOutputBytes?: number
+  /** SIGTERM-to-SIGKILL grace period used by the subprocess provider. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/graphify/tool-graphify/src/index.ts:32`](../packages/graphify/tool-graphify/src/index.ts)
+
 <a id="deepseek-aidsh-tool-jobs"></a>
 
 ## `@deepseek-ai/dsh-tool-jobs`

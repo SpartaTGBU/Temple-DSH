@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": ["src/**/*.ts"],
+  "references": [
+    { "path": "../../runtime-diagnostics/invariants" },
+    { "path": "../../subprocess/subprocess" },
+    { "path": "../../core/tools" },
+    { "path": "../../llm/llm" },
+    { "path": "../../core/session" },
+    { "path": "../../../vendor/cordis" },
+    { "path": "../../../vendor/schemastery" }
+  ]
+}

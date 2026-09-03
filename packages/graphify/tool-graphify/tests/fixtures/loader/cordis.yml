@@ -1,0 +1,20 @@
+# Minimal tool-graphify composition; the test driver writes a copy with the
+# fake CLI's absolute path before booting through app-boot.
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+
+- id: tools
+  name: '@deepseek-ai/dsh-tools'
+
+- id: subprocess
+  name: '@deepseek-ai/dsh-subprocess-local'
+
+- id: tool-graphify
+  name: '@deepseek-ai/dsh-tool-graphify'
+  config:
+    workspaceRoot: __WORKSPACE__
+    binaryPath: __GRAPHIFY_BIN__
+    binaryArgs:
+      - __GRAPHIFY_SCRIPT__
+    timeoutMs: 10000
+    graceMs: 100
