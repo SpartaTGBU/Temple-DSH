@@ -1200,6 +1200,35 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'memory',
+    summary: 'Swappable long-term memory provider.',
+    description: 'Swappable long-term memory provider. Implementations own storage/process lifecycle; consumers own when recall and capture occur.',
+    methods: [
+      {
+        signature: 'abstract status(): MemoryStatus',
+        description: 'Return non-secret backend health without starting model-facing work.',
+        parameters: [],
+        returns: 'the current backend state and queue counters.',
+      },
+      {
+        signature: 'abstract recall(request: MemoryRecallRequest, signal?: AbortSignal): Promise<MemoryRecallResult>',
+        description: 'Recall bounded background information for one turn.',
+        parameters: [{ name: 'request', description: 'session, query, item limit, and byte limit.' }, { name: 'signal', description: 'optional cancellation for this recall.' }],
+        returns: 'provider-neutral recalled fragments within the requested bounds.',
+      },
+      {
+        signature: 'abstract captureTurn(turn: MemoryCaptureTurn): Promise<void>',
+        description: 'Enqueue one completed turn for durable capture.',
+        parameters: [{ name: 'turn', description: 'completed direct-user and visible-assistant exchange.' }],
+      },
+      {
+        signature: 'abstract flush(): Promise<void>',
+        description: 'Wait until every accepted capture reaches the backend.',
+        parameters: [],
+      },
+    ],
+  },
+  {
     key: 'memoryPressure',
     summary: 'Host memory-pressure detection service (`ctx.memoryPressure`).',
     description: 'Host memory-pressure detection service (`ctx.memoryPressure`).',
@@ -4450,12 +4479,36 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ManualCompactAgentContext extends CompactionAgentContext {\n    runMaintenance<T>(task: (signal: AbortSignal) => Promise<T>): Promise<T>;\n}',
   },
   {
+    name: 'MemoryBackendState',
+    declaration: 'export type MemoryBackendState = \'ready\' | \'starting\' | \'degraded\' | \'unavailable\' | \'stopped\';',
+  },
+  {
+    name: 'MemoryCaptureTurn',
+    declaration: 'export interface MemoryCaptureTurn {\n    readonly sessionId: string;\n    readonly turn: number;\n    readonly userText: string;\n    readonly assistantText: string;\n    readonly completedAt: number;\n    readonly cwd?: string;\n}',
+  },
+  {
     name: 'MemoryPressureLevel',
     declaration: 'export type MemoryPressureLevel = \'normal\' | \'elevated\' | \'critical\';',
   },
   {
     name: 'MemoryPressureSample',
     declaration: 'export interface MemoryPressureSample {\n    readonly level: MemoryPressureLevel;\n    readonly heapUsedBytes: number;\n    readonly elevatedBytes: number;\n    readonly criticalBytes: number;\n}',
+  },
+  {
+    name: 'MemoryRecallItem',
+    declaration: 'export interface MemoryRecallItem {\n    readonly text: string;\n    readonly drawerId?: string;\n    readonly wing?: string;\n    readonly room?: string;\n    readonly sourceFile?: string;\n    readonly distance?: number;\n}',
+  },
+  {
+    name: 'MemoryRecallRequest',
+    declaration: 'export interface MemoryRecallRequest {\n    readonly sessionId: string;\n    readonly query: string;\n    readonly limit: number;\n    readonly maxBytes: number;\n}',
+  },
+  {
+    name: 'MemoryRecallResult',
+    declaration: 'export interface MemoryRecallResult {\n    readonly backend: string;\n    readonly items: readonly MemoryRecallItem[];\n    readonly truncated: boolean;\n}',
+  },
+  {
+    name: 'MemoryStatus',
+    declaration: 'export interface MemoryStatus {\n    readonly state: MemoryBackendState;\n    readonly backend: string;\n    readonly detail?: string;\n    readonly pendingCaptures: number;\n    readonly workerStarts: number;\n}',
   },
   {
     name: 'Message',

@@ -134,6 +134,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Owns isolated per-session replay folds; pressure consumers share immutable revisioned measurements.',
   },
   {
+    key: 'memory',
+    pkg: 'memory',
+    title: 'Automatic long-term memory',
+    mode: 'seam',
+    implementations: ['memory-mempalace'],
+    consumers: ['memory-context'],
+    note: 'Recalls bounded background before the first model request and captures successful completed turns without model-facing memory tools.',
+  },
+  {
     key: 'memoryPressure',
     pkg: 'memory-pressure',
     title: 'Host memory-pressure detection',

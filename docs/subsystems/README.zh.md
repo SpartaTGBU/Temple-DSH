@@ -9,6 +9,7 @@
 | [core.md](core.zh.md) | `packages/core` 如何控制 agent loop（智能体循环）：逐包的循环说明、agent 创建与所有权（`AgentHandle`）、`Agent` 句柄的投递/取消/拦截约定，以及全仓通用类型模式（`…Map → 派生联合`、品牌化 id） |
 | [llm-streaming.md](llm-streaming.zh.md) | `packages/llm` 的对话类型——`Message`/`ContentBlock`、组装完成的模型请求、`StreamChunk` wire protocol 和适配器约定（adapter contract）、`BlockAssembler`，以及 `LlmAdapter` 提供方约定 |
 | [token-meter.md](token-meter.zh.md) | 不可变的标量与位置回放度量，附带已消费日志修订号 |
+| [memory.md](memory.zh.md) | 自动长期记忆服务、首次 step 召回、已完成轮次捕获和提供方生命周期 |
 | [memory-pressure.md](memory-pressure.zh.md) | 宿主内存压力检测器：水位分类、`runtime/memory-pressure` 跃迁事件与 `MemoryPressure` 服务 |
 | [session-residency.md](session-residency.zh.md) | 会话驱逐决策策略：内存计量器排序、空闲/打开回合过滤，以及 `ResidencyExecutor` 接缝 |
 | [scope.md](scope.zh.md) | 作用域注册标识、dispatch 载体，以及拥有的 `Scope` 上下文 |

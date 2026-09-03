@@ -27,6 +27,10 @@ flowchart LR
   pkg_plugin_package_inventory_deepseek["plugin-package-inventory-deepseek"]
   pkg_token_meter["token-meter"]
   svc_tokenMeter["ctx.tokenMeter<br/>Replay token measurement"]
+  pkg_memory["memory"]
+  svc_memory["ctx.memory<br/>Automatic long-term memory"]
+  pkg_memory_mempalace["memory-mempalace"]
+  pkg_memory_context["memory-context"]
   pkg_memory_pressure["memory-pressure"]
   svc_memoryPressure["ctx.memoryPressure<br/>Host memory-pressure detection"]
   pkg_session_residency["session-residency"]
@@ -276,6 +280,8 @@ flowchart LR
   pkg_llm_replay --> svc_llm
   pkg_lsp --> svc_lsp
   pkg_lsp_stdio --> svc_lsp
+  pkg_memory --> svc_memory
+  pkg_memory_mempalace --> svc_memory
   pkg_memory_pressure --> svc_memoryPressure
   pkg_message_feedback --> svc_messageFeedback
   pkg_permission_presets --> svc_permissionPresets
@@ -383,6 +389,7 @@ flowchart LR
   svc_llm --> pkg_agent_loop
   svc_llm --> pkg_compaction_basic
   svc_lsp --> pkg_tool_lsp
+  svc_memory --> pkg_memory_context
   svc_sandbox --> pkg_bash_sandbox
   svc_sandbox --> pkg_terminal_bash
   svc_sandboxPolicy --> pkg_bash_sandbox
@@ -477,6 +484,7 @@ flowchart LR
 | `ctx.llm` | `seam` | [`llm`](../packages/llm/llm) | [`llm-deepseek`](../packages/llm/llm-deepseek), [`llm-pi-ai`](../packages/llm/llm-pi-ai), [`llm-replay`](../packages/test-support/llm-replay) | [`agent-loop`](../packages/core/agent-loop), [`compaction-basic`](../packages/compaction/compaction-basic) | - | 适配器注册提供方实现；agent loop（智能体循环）与压缩功能调用提供方无关的流服务。 |
 | `ctx.deepseekLlmApiExtensions` | `seam` | [`deepseek-llm-api-extensions`](../packages/llm/deepseek-llm-api-extensions) | [`session-log-deepseek`](../packages/session/session-log-deepseek), [`plugin-package-inventory-deepseek`](../packages/llm/plugin-package-inventory-deepseek) | [`llm-deepseek`](../packages/llm/llm-deepseek) | - | 插件准备彼此独立的顶层字段；官方适配器会合并这些字段，并在 HTTP 接受后提交其交付状态。 |
 | `ctx.tokenMeter` | `core` | [`token-meter`](../packages/llm/token-meter) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | 拥有按会话隔离的回放折叠区；压力消费方共享不可变且带修订版本的测量结果。 |
+| `ctx.memory` | `seam` | [`memory`](../packages/memory/memory) | [`memory-mempalace`](../packages/memory/memory-mempalace) | [`memory-context`](../packages/memory/memory-context) | - | 在首次模型请求前召回有界背景，并在没有面向模型记忆工具的情况下捕获成功完成的轮次。 |
 | `ctx.memoryPressure` | `core` | [`memory-pressure`](../packages/runtime-diagnostics/memory-pressure) | - | - | - | Samples host heap-used against watermarks and emits runtime/memory-pressure level transitions; shedding responders consume the event. |
 | `ctx.sessionResidency` | `core` | [`session-residency`](../packages/session/session-residency) | - | [`session-residency-cache-release`](../packages/session/session-residency-cache-release) | - | Ranks resident sessions with the memory meter under memory pressure and selects idle, closed-turn eviction candidates for a registered executor. |
 | `ctx.toolResultPruner` | `core` | [`compaction-tool-result-pruner`](../packages/compaction/compaction-tool-result-pruner) | - | [`compaction-basic`](../packages/compaction/compaction-basic) | - | 在摘要压缩前，通过可回放的单节点表层替换来改写过大的当前工具结果。 |

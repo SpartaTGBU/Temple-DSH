@@ -1,0 +1,13 @@
+# Add these rows to a composition that already mounts Agent, Session, and Subprocess.
+- name: '@deepseek-ai/dsh-memory-mempalace'
+  config:
+    pythonExecutable: python
+    palacePath: C:/Users/example/.mempalace/palace
+    wing: wing_general
+
+- name: '@deepseek-ai/dsh-memory-context'
+  config:
+    recallLimit: 3
+    maxRecallBytes: 6000
+    recallTimeoutMs: 5000
+    captureSubagents: false

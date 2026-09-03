@@ -9,6 +9,7 @@ One page per subsystem of the DeepSeek Harness: what it is, the data structures 
 | [core.md](core.md) | how `packages/core` controls the agent loop: the package-by-package loop description, agent creation and ownership (`AgentHandle`), the `Agent` handle's delivery/cancellation/interception contracts, and the repo-wide type patterns (`…Map → derived-union`, branded ids) |
 | [llm-streaming.md](llm-streaming.md) | the `packages/llm` conversation types — `Message`/`ContentBlock`, the assembled model request, the `StreamChunk` wire protocol and adapter contract, `BlockAssembler`, and the `LlmAdapter` provider contract |
 | [token-meter.md](token-meter.md) | immutable scalar and positional replay measurements with consumed-log revisions |
+| [memory.md](memory.md) | automatic long-term-memory service, first-step recall, completed-turn capture, and provider lifecycle |
 | [memory-pressure.md](memory-pressure.md) | the host memory-pressure detector: watermark classification, the `runtime/memory-pressure` transition event, and the `MemoryPressure` service |
 | [session-residency.md](session-residency.md) | the session-eviction decision policy: memory-meter ranking, idle/open-turn filtering, and the `ResidencyExecutor` seam |
 | [scope.md](scope.md) | scoped registration identity, dispatch carriers, and the owned `Scope` context |

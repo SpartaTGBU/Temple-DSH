@@ -45,6 +45,7 @@ harness 由 `packages/` 下的 npm 包组装而成，按能力系列分组：会
 | [`fs/`](fs/README.zh.md) | 文件系统能力系列：seam、本地实现、面向模型的文件工具、发现工具 |
 | [`lsp/`](lsp/README.zh.md) | LSP 能力系列：seam、通用 stdio 提供方和 `lsp` 工具 |
 | [`skill/`](skill/README.zh.md) | skill 能力系列：提供方注册表、本地提供方、面向模型的目录/loader |
+| [`memory/`](memory/README.zh.md) | 自动长期记忆服务、生命周期召回/捕获和原生 MemPalace 提供方 |
 | [`compaction/`](compaction/README.zh.md) | 压缩能力系列：Service Definition + 基础提供方 + 命令 Consumer |
 | [`context/`](context/README.zh.md) | 模型可见请求上下文：workspace 指令、时间上下文、引用 |
 | [`subagent/`](subagent/README.zh.md) | subagent 能力系列：提供方注册表约定和面向模型的委托工具 |

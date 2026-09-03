@@ -47,6 +47,13 @@ describe('dsh-base bundle', () => {
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-codex')
     expect(manifest.dependencies).not.toHaveProperty('@deepseek-ai/dsh-subagent-claude-code')
     expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-web-fetch-http')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-memory')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-memory-context')
+    expect(manifest.dependencies).toHaveProperty('@deepseek-ai/dsh-memory-mempalace')
+    const memoryProvider = rows.find(row => row.id === 'memory-mempalace')
+    const memoryContext = rows.find(row => row.id === 'memory-context')
+    expect(memoryProvider?.disabled).toEqual({ __jsExpr: "process.env.MEMPALACE_ENABLED !== '1'" })
+    expect(memoryContext?.disabled).toEqual({ __jsExpr: "process.env.MEMPALACE_ENABLED !== '1'" })
   })
 
   it('gates each shell stack by platform with a symmetric disabled expression', () => {

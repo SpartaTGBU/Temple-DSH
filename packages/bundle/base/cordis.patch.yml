@@ -205,6 +205,29 @@
     - id: subprocess
       name: '@deepseek-ai/dsh-subprocess-local'
 
+
+    # Native, automatic MemPalace memory. Both rows stay dormant unless the
+    # deployment explicitly opts in; once enabled, recall/capture are automatic
+    # agent lifecycle behavior and expose no model-facing memory tools.
+    - id: memory-mempalace
+      name: '@deepseek-ai/dsh-memory-mempalace'
+      disabled: !!js process.env.MEMPALACE_ENABLED !== '1'
+      config:
+        pythonExecutable: !!js process.env.MEMPALACE_PYTHON || 'python'
+        palacePath: !!js process.env.MEMPALACE_PALACE_PATH
+        collectionName: !!js process.env.MEMPALACE_COLLECTION
+        backend: !!js process.env.MEMPALACE_BACKEND
+        wing: !!js process.env.MEMPALACE_WING || 'wing_general'
+
+    - id: memory-context
+      name: '@deepseek-ai/dsh-memory-context'
+      disabled: !!js process.env.MEMPALACE_ENABLED !== '1'
+      config:
+        recallLimit: 3
+        maxRecallBytes: 6000
+        recallTimeoutMs: 5000
+        captureSubagents: false
+
     # Every shipped CLI mode starts with the same file-effect boundary.
     # The environment remains an explicit deployment override; otherwise fresh
     # sessions pin workspace-write + ask through the permission service below.

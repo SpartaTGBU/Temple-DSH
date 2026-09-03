@@ -1516,6 +1516,62 @@ export interface ReconnectConfig {
 
 Source: [`packages/mcp/mcp-client/src/index.ts:98`](../packages/mcp/mcp-client/src/index.ts)
 
+<a id="deepseek-aidsh-memory-context"></a>
+
+## `@deepseek-ai/dsh-memory-context`
+
+Requires: `memory` · `agents`
+
+```ts config-catalog
+/** Automatic recall/capture policy. */
+export interface Config {
+  /** Maximum recalled items per first step. @default 3 */
+  readonly recallLimit?: number
+  /** Maximum UTF-8 bytes injected into one request. @default 6000 */
+  readonly maxRecallBytes?: number
+  /** Recall deadline in milliseconds. @default 5000 */
+  readonly recallTimeoutMs?: number
+  /** Capture subagent-origin sessions. @default false */
+  readonly captureSubagents?: boolean
+}
+```
+
+Source: [`packages/memory/memory-context/src/index.ts:18`](../packages/memory/memory-context/src/index.ts)
+
+<a id="deepseek-aidsh-memory-mempalace"></a>
+
+## `@deepseek-ai/dsh-memory-mempalace`
+
+Requires: `subprocess`
+
+```ts config-catalog
+/** Persistent sidecar and MemPalace location configuration. */
+export interface Config {
+  /** Python executable or absolute path. @default python */
+  readonly pythonExecutable?: string
+  /** Override the packaged bridge, primarily for integration tests. */
+  readonly bridgePath?: string
+  /** Explicit MemPalace palace directory. */
+  readonly palacePath?: string
+  /** Explicit MemPalace drawer collection. */
+  readonly collectionName?: string
+  /** MemPalace backend override; omission follows MemPalace config/env/detection. */
+  readonly backend?: string
+  /** Wing used for automatically captured DSH turns. @default wing_general */
+  readonly wing?: string
+  /** Maximum queued completed turns. @default 256 */
+  readonly maxPendingCaptures?: number
+  /** Request timeout in milliseconds. @default 10000 */
+  readonly requestTimeoutMs?: number
+  /** Maximum JSONL request or response frame bytes. @default 1048576 */
+  readonly maxFrameBytes?: number
+  /** Managed-process termination grace in milliseconds. @default 2000 */
+  readonly graceMs?: number
+}
+```
+
+Source: [`packages/memory/memory-mempalace/src/index.ts:19`](../packages/memory/memory-mempalace/src/index.ts)
+
 <a id="deepseek-aidsh-memory-pressure"></a>
 
 ## `@deepseek-ai/dsh-memory-pressure`
@@ -3535,6 +3591,7 @@ Abstract service classes — a deployment loads a concrete implementation packag
 - `@deepseek-ai/dsh-fs` — abstract `FileSystem` ([`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts))
 - `@deepseek-ai/dsh-host-directory-picker` — abstract `DirectoryPicker` ([`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts))
 - `@deepseek-ai/dsh-jobs` — abstract `JobRegistry` ([`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts))
+- `@deepseek-ai/dsh-memory` — abstract `MemoryRuntime` ([`packages/memory/memory/src/index.ts`](../packages/memory/memory/src/index.ts))
 - `@deepseek-ai/dsh-sandbox` — abstract `SandboxProvider` ([`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts))
 - `@deepseek-ai/dsh-session-persistence` — abstract `SessionPersistence` ([`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts))
 - `@deepseek-ai/dsh-session-query` — abstract `SessionQueryEngine` ([`packages/session-query/session-query/src/index.ts`](../packages/session-query/session-query/src/index.ts))
