@@ -309,10 +309,12 @@ export interface Config {
   readonly sourceTimeoutMs?: number
   /** Hard lifetime for one storage projection worker in milliseconds. @default 5000 */
   readonly projectionTimeoutMs?: number
+  /** Maximum simultaneous storage projection workers. @default 4 */
+  readonly maxConcurrentProjections?: number
 }
 ```
 
-来源：[`packages/api/mempalace-dashboard/src/index.ts:23`](../packages/api/mempalace-dashboard/src/index.ts)
+来源：[`packages/api/mempalace-dashboard/src/index.ts:25`](../packages/api/mempalace-dashboard/src/index.ts)
 
 <a id="deepseek-aidsh-api-session-controller"></a>
 

@@ -31,4 +31,14 @@ describe('MemPalace projection worker lifecycle', () => {
     await expect(pending).rejects.toThrow('owner is disposed')
     await expect(workers.run({}, options('hang'), 1000)).rejects.toThrow('owner is disposed')
   })
+
+  it('bounds concurrent workers and terminates work when the request is cancelled', async () => {
+    const workers = new ProjectionWorkers(new URL('./fixtures/projection-worker.mjs', import.meta.url), 1)
+    const abort = new AbortController()
+    const pending = workers.run({}, options('hang'), 1000, abort.signal)
+    await expect(workers.run({}, options('hang'), 1000)).rejects.toThrow('capacity is busy')
+    abort.abort()
+    await expect(pending).rejects.toThrow('projection cancelled')
+    await workers.dispose()
+  })
 })

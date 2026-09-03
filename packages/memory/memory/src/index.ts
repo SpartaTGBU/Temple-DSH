@@ -85,9 +85,9 @@ export abstract class MemoryRuntime extends Service {
    * @param signal - optional cancellation for provider-side resolution.
    * @returns a read-only inspection source, or `undefined` when unsupported.
    */
-  async inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined> {
+  inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined> {
     void signal
-    return undefined
+    return Promise.resolve(undefined)
   }
 
   /**

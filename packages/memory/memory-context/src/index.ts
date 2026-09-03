@@ -148,7 +148,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     const recallSignal = AbortSignal.any([signal, AbortSignal.timeout(recallTimeoutMs)])
     try {
       const result = await ctx.memory.recall({ sessionId: agent.id, query, limit: recallLimit, maxBytes: maxRecallBytes }, recallSignal)
-      if (signal.aborted || result.items.length === 0) return decision
+      if (recallSignal.aborted || result.items.length === 0) return decision
       const text = renderRecall(result.items, maxRecallBytes)
       return {
         ...decision,
@@ -158,7 +158,7 @@ export function apply(ctx: Context, config: Config = {}): void {
         })],
       }
     } catch (error) {
-      if (!signal.aborted) ctx.logger.warn(`memory-context recall skipped: ${String(error)}`)
+      if (!recallSignal.aborted) ctx.logger.warn(`memory-context recall skipped: ${String(error)}`)
       return decision
     }
   }, { prepend: true })
@@ -171,7 +171,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     const capture = deriveCompletedTurn(session, event.data.turn, event.time)
     if (capture === undefined) return
     turns.add(event.data.turn)
-    void ctx.memory.captureTurn(capture).catch(error => {
+    void ctx.memory.captureTurn(capture).catch((error: unknown) => {
       ctx.logger.warn(`memory-context capture failed for ${session.id} turn ${event.data.turn}: ${String(error)}`)
     })
   })

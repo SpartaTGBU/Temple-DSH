@@ -1,13 +1,11 @@
 /** Browser-safe MemPalace dashboard projection values. */
 
-/** Logical endpoint inside the shared `/api` RPC channel. */
-export const MEMPALACE_DASHBOARD_ENDPOINT = 'mempalaceDashboard/inspect'
-
 /** Why one requested MemPalace view cannot be answered from persisted state. */
 export type MemPalaceUnavailableReason =
   | 'memory-provider-not-found'
   | 'memory-provider-unsupported'
   | 'memory-provider-unavailable'
+  | 'memory-projection-unavailable'
   | 'palace-not-found'
   | 'drawer-index-not-found'
   | 'unsupported-backend'
@@ -101,6 +99,12 @@ export interface MemPalaceTunnelView {
 
 /** Inspectable palace structure backed by drawer metadata and tunnel sidecars. */
 export interface MemPalaceStructureView {
+  /** Exact collection drawer count, independent of bounded aggregate rows. */
+  readonly drawerCount: number
+  /** Exact count of distinct persisted wings. */
+  readonly wingCount: number
+  /** Exact count of distinct wing/room pairs. */
+  readonly roomCount: number
   readonly wings: readonly MemPalaceWingView[]
   readonly rooms: readonly MemPalaceRoomView[]
   readonly drawers: readonly MemPalaceDrawerView[]

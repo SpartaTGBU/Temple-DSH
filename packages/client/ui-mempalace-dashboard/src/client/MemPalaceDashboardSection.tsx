@@ -39,8 +39,8 @@ export function MemPalaceDashboardSection({ inspect, t }: MemPalaceDashboardSect
     let current = true
     setState({ status: 'loading' })
     void inspect(request).then(
-      snapshot => { if (current) setState({ status: 'ready', snapshot }) },
-      error => { if (current) setState({ status: 'error', message: error instanceof Error ? error.message : String(error) }) },
+      (snapshot) => { if (current) setState({ status: 'ready', snapshot }) },
+      (error: unknown) => { if (current) setState({ status: 'error', message: error instanceof Error ? error.message : String(error) }) },
     )
     return () => { current = false }
   }, [inspect, request])
@@ -57,15 +57,15 @@ export function MemPalaceDashboardSection({ inspect, t }: MemPalaceDashboardSect
       }}>
         <label style={INPUT_STYLE}>
           <span>{t('wingFilter')}</span>
-          <input value={wing} onChange={event => { setWing(event.currentTarget.value) }} />
+          <input value={wing} onChange={(event) => { setWing(event.currentTarget.value) }} />
         </label>
         <label style={INPUT_STYLE}>
           <span>{t('roomFilter')}</span>
-          <input value={room} onChange={event => { setRoom(event.currentTarget.value) }} />
+          <input value={room} onChange={(event) => { setRoom(event.currentTarget.value) }} />
         </label>
         <label style={INPUT_STYLE}>
           <span>{t('queryFilter')}</span>
-          <input value={query} onChange={event => { setQuery(event.currentTarget.value) }} />
+          <input value={query} onChange={(event) => { setQuery(event.currentTarget.value) }} />
         </label>
         <button type="submit">{t('refresh')}</button>
       </form>
@@ -106,9 +106,9 @@ function SnapshotView({ snapshot, t }: {
         {!snapshot.structure.available ? <UnavailableNotice unavailable={snapshot.structure} /> : (
           <div style={GRID_STYLE}>
             <p>{t('counts', {
-              wings: snapshot.structure.value.wings.length,
-              rooms: snapshot.structure.value.rooms.length,
-              drawers: snapshot.structure.value.wings.reduce((sum, wing) => sum + wing.drawerCount, 0),
+              wings: snapshot.structure.value.wingCount,
+              rooms: snapshot.structure.value.roomCount,
+              drawers: snapshot.structure.value.drawerCount,
             })}</p>
             <ul style={LIST_STYLE}>
               {snapshot.structure.value.wings.slice(0, 8).map(wing => (

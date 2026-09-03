@@ -26,14 +26,14 @@ kind: "package-reference"
 
 把本包挂载在 Web 宿主平面，并启用配套客户端包。随附 Web profile 仅在 `MEMPALACE_ENABLED=1` 时同时启用原生提供方、自动消费者、宿主 API 和浏览器 row；未设置和所有其他值都会禁用这四个 row。
 
-API 在 `/api` 下注册一个已认证的共享通道 endpoint：`mempalaceDashboard/inspect`。它接受可选的 `wing`、`room`、`query` 与 `limit` 字段。空字符串会被忽略，`limit` 会限制在 1..100，聚合行数和 sidecar 字节数都有上限。`sourceTimeoutMs` 限制提供方解析时间，`projectionTimeoutMs` 限制每个一次性检查 worker。
+API 在 `/api` 下注册一个已认证的共享通道 endpoint：`mempalaceDashboard/inspect`。它接受可选的 `wing`、`room`、`query` 与 `limit` 字段。空字符串会被忽略，过滤字符串限制为 256 个字符，`limit` 会限制在 1..100，聚合行数、投影隧道数和 sidecar 字节数都有上限。`sourceTimeoutMs` 限制提供方解析时间，`projectionTimeoutMs` 限制每个一次性检查 worker，`maxConcurrentProjections` 默认把同时运行的 worker 限制为四个。
 
 -----
 
 <a id="lifecycle-and-security-boundaries"></a>
 ## 生命周期与安全边界
 
-插件不执行写入，并用 `readOnly` 与 `PRAGMA query_only` 打开 SQLite 数据库。提供方配置解析使用原生提供方的私有受管 bridge，但不打开或创建 collection。阻塞式 SQLite 与 sidecar 读取在 worker thread 中运行；endpoint 销毁会终止进行中的 worker。endpoint 只会在组合后的 Connection 服务应用常规 Host/Origin 检查与浏览器认证之后可用。
+插件不执行写入，并用 `readOnly` 与 `PRAGMA query_only` 打开 SQLite 数据库。提供方配置解析使用原生提供方的私有受管 bridge，但不打开或创建 collection。阻塞式 SQLite 与 sidecar 读取在 worker thread 中运行；请求取消、超时和 endpoint 销毁都会终止进行中的 worker。存储失败返回固定诊断，不返回原始 SQLite 错误。endpoint 只会在组合后的 Connection 服务应用常规 Host/Origin 检查与浏览器认证之后可用。
 
 -----
 

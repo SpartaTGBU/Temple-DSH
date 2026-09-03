@@ -6,7 +6,6 @@ import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { resolveSlotLabel } from '@deepseek-ai/dsh-client-ui-slots'
 import { usePinnedBrowserLanguages } from '@deepseek-ai/dsh-client-test-runtime'
-import { MEMPALACE_DASHBOARD_ENDPOINT } from '@deepseek-ai/dsh-api-mempalace-dashboard/types'
 import { apply, inject, NS } from '../src/client/index.ts'
 import { MemPalaceDashboardSection } from '../src/client/MemPalaceDashboardSection.tsx'
 import type { MemPalaceDashboardSectionInjected, MemPalaceDashboardSectionProps } from '../src/client/MemPalaceDashboardSection.tsx'
@@ -79,7 +78,7 @@ describe('ui-mempalace-dashboard browser plugin', () => {
     await expect(injected.inspect({ wing: 'wing_alpha' })).resolves.toEqual(SNAPSHOT)
     expect(b.connection.rpc.call).toHaveBeenCalledWith(
       '/api',
-      MEMPALACE_DASHBOARD_ENDPOINT,
+      'mempalaceDashboard/inspect',
       { wing: 'wing_alpha' },
     )
     b.connection.rpc.call.mockResolvedValueOnce({ ok: false, error: { code: 'missing', message: 'no API', details: {} } })
@@ -124,5 +123,30 @@ describe('ui-mempalace-dashboard browser plugin', () => {
     fireEvent.click(screen.getByRole('button', { name: 'refresh' }))
     await waitFor(() => { expect(inspect).toHaveBeenCalledTimes(2) })
     expect(inspect).toHaveBeenLastCalledWith({ wing: 'wing_alpha', room: '', query: '', limit: 25 })
+  })
+
+  it('does not let an older response replace a newer submitted snapshot', async () => {
+    const resolves: Array<(value: typeof SNAPSHOT) => void> = []
+    const inspect = vi.fn(() => new Promise<typeof SNAPSHOT>((resolve) => { resolves.push(resolve) }))
+    const t = (key: string, values?: Record<string, unknown>): string => key === 'providerStatus'
+      ? `${String(values?.state)} ${String(values?.pending)}`
+      : key
+    render(<MemPalaceDashboardSection
+      {...({} as MemPalaceDashboardSectionProps)}
+      inspect={inspect}
+      close={vi.fn()}
+      t={t as never}
+    />)
+    await waitFor(() => { expect(resolves).toHaveLength(1) })
+    fireEvent.click(screen.getByRole('button', { name: 'refresh' }))
+    await waitFor(() => { expect(resolves).toHaveLength(2) })
+    resolves[1]?.({
+      ...SNAPSHOT,
+      provider: { available: true, value: { ...SNAPSHOT.provider.value, pendingCaptures: 2 } },
+    })
+    await screen.findByText('ready 2')
+    resolves[0]?.(SNAPSHOT)
+    await waitFor(() => { expect(screen.getByText('ready 2')).toBeDefined() })
+    expect(screen.queryByText('ready 0')).toBeNull()
   })
 })

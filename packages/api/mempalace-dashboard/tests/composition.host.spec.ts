@@ -21,7 +21,7 @@ vi.mock('../src/worker-client.ts', () => ({
 }))
 
 import * as dashboard from '../src/index.ts'
-import { MEMPALACE_DASHBOARD_ENDPOINT } from '../src/types.ts'
+const { MEMPALACE_DASHBOARD_ENDPOINT } = dashboard
 
 class TestMemory extends MemoryRuntime {
   constructor(ctx: Context, private readonly degraded = false) {
@@ -63,7 +63,7 @@ class TestMemory extends MemoryRuntime {
 }
 
 interface CapturedEndpoint {
-  handler: ((_endpoint: string, payload: unknown) => Promise<unknown>) | undefined
+  handler: ((_endpoint: string, payload: unknown, signal: AbortSignal) => Promise<unknown>) | undefined
 }
 
 async function composed(memory: 'ready' | 'degraded' | 'missing', disabled = false) {
@@ -95,7 +95,11 @@ async function composed(memory: 'ready' | 'degraded' | 'missing', disabled = fal
 describe('MemPalace dashboard Loader composition', () => {
   it('mounts the default endpoint, reads provider-owned coordinates, and disposes the interceptor', async () => {
     const fixture = await composed('ready')
-    const result = await fixture.captured.handler?.(MEMPALACE_DASHBOARD_ENDPOINT, { limit: 7 }) as {
+    const result = await fixture.captured.handler?.(
+      MEMPALACE_DASHBOARD_ENDPOINT,
+      { limit: 7 },
+      new AbortController().signal,
+    ) as {
       ok: true
       value: Record<string, unknown>
     }
@@ -108,7 +112,6 @@ describe('MemPalace dashboard Loader composition', () => {
       location: {
         available: true,
         value: {
-          palacePath: expect.stringContaining('missing-provider-palace'),
           collectionName: 'provider_collection',
           backend: 'sqlite_exact',
           wing: 'wing_provider',
@@ -117,6 +120,7 @@ describe('MemPalace dashboard Loader composition', () => {
       },
       filters: { limit: 7 },
     })
+    expect(JSON.stringify(result.value)).toContain('missing-provider-palace')
     expect(JSON.stringify(result)).not.toContain('secret-like')
     await fixture.ctx.fiber.dispose()
     expect(fixture.stop).toHaveBeenCalledOnce()
@@ -135,7 +139,11 @@ describe('MemPalace dashboard Loader composition', () => {
     ['degraded', 'memory-provider-unavailable'],
   ] as const)('returns an explicit unavailable snapshot for a %s provider', async (mode, reason) => {
     const fixture = await composed(mode)
-    const result = await fixture.captured.handler?.(MEMPALACE_DASHBOARD_ENDPOINT, {}) as {
+    const result = await fixture.captured.handler?.(
+      MEMPALACE_DASHBOARD_ENDPOINT,
+      {},
+      new AbortController().signal,
+    ) as {
       ok: true
       value: { provider: { reason: string }; structure: { reason: string } }
     }

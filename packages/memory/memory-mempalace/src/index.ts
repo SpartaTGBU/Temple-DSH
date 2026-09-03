@@ -139,16 +139,21 @@ export class MemPalaceMemory extends MemoryRuntime {
     return { backend: 'mempalace', items, truncated }
   }
 
-  async captureTurn(turn: MemoryCaptureTurn): Promise<void> {
-    this.assertPayloadFits('capture', turn)
-    const max = this.config.maxPendingCaptures ?? 256
-    if (this.captures.length + (this.activeCapture ? 1 : 0) >= max) {
-      this.state = 'degraded'
-      this.detail = `capture queue full (${String(max)})`
-      throw new Error(`memory-mempalace: capture queue full (${String(max)})`)
+  captureTurn(turn: MemoryCaptureTurn): Promise<void> {
+    try {
+      this.assertPayloadFits('capture', turn)
+      const max = this.config.maxPendingCaptures ?? 256
+      if (this.captures.length + (this.activeCapture ? 1 : 0) >= max) {
+        this.state = 'degraded'
+        this.detail = `capture queue full (${String(max)})`
+        throw new Error(`memory-mempalace: capture queue full (${String(max)})`)
+      }
+      this.captures.push(turn)
+      this.startPump()
+      return Promise.resolve()
+    } catch (error) {
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)))
     }
-    this.captures.push(turn)
-    this.startPump()
   }
 
   async flush(): Promise<void> {
@@ -215,9 +220,12 @@ export class MemPalaceMemory extends MemoryRuntime {
 
   private async ensureStarted(): Promise<void> {
     if (this.handle !== undefined) return
-    if (this.starting !== undefined) return await this.starting
+    if (this.starting !== undefined) {
+      await this.starting
+      return
+    }
     this.starting = this.startWorker().finally(() => { this.starting = undefined })
-    return await this.starting
+    await this.starting
   }
 
   private async startWorker(): Promise<void> {
@@ -242,17 +250,17 @@ export class MemPalaceMemory extends MemoryRuntime {
       this.handle = handle
       this.workerStarts += 1
       this.reader = createInterface({ input: handle.stdout, crlfDelay: Infinity })
-      this.reader.on('line', line => { if (this.handle === handle) this.onLine(line) })
-      handle.stdin.on('error', error => {
+      this.reader.on('line', (line) => { if (this.handle === handle) this.onLine(line) })
+      handle.stdin.on('error', (error) => {
         if (this.handle === handle) this.failWorker(new Error(`memory-mempalace: worker stdin failed: ${error.message}`), handle)
       })
       void handle.done.then(
-        outcome => {
+        (outcome) => {
           if (this.handle === handle && !this.stopping) {
             this.failWorker(new Error(`memory-mempalace: worker exited (${String(outcome.exitCode)})`))
           }
         },
-        error => {
+        (error: unknown) => {
           if (this.handle === handle) this.failWorker(new Error(`memory-mempalace: worker failed: ${safeMessage(error)}`))
         },
       )

@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/api/mempalace-dashboard/README.md
-README.md: a0d7aa1f0ee8de6145f35afe9ba6dbcc8ff93db7
-README.zh.md: 9f0ab0f8fd37da27f4f174d7c5ee7b7607daedb8
+README.md: 56bd33ecb334e6b952597e8f8c258f7b38606981
+README.zh.md: e3150a50d3227d24dc88d7a90beb38f1cd64ae08

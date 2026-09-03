@@ -1211,7 +1211,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the current backend state and queue counters.',
       },
       {
-        signature: 'async inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>',
+        signature: 'inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>',
         description: 'Resolve non-secret storage coordinates through the provider\'s own configuration path. Providers that do not support local inspection return `undefined`.',
         parameters: [{ name: 'signal', description: 'optional cancellation for provider-side resolution.' }],
         returns: 'a read-only inspection source, or `undefined` when unsupported.',

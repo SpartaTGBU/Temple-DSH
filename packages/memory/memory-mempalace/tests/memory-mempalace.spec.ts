@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import { MemPalaceMemory } from '@deepseek-ai/dsh-memory-mempalace'
+import { MemPalaceMemory, type Config } from '@deepseek-ai/dsh-memory-mempalace'
 import type { MemoryCaptureTurn } from '@deepseek-ai/dsh-memory'
 import { fileURLToPath } from 'node:url'
 
@@ -12,17 +12,16 @@ afterEach(async () => {
   while (contexts.length > 0) await contexts.pop()!.fiber.dispose()
 })
 
-function mounted(overrides: ConstructorParameters<typeof MemPalaceMemory>[1] = {}) {
+function mounted(overrides: Config = {}) {
   const ctx = new Context()
   contexts.push(ctx)
   new LocalSubprocessRuntime(ctx)
-  const memory = new MemPalaceMemory(ctx, {
+  const memory = new MemPalaceMemory(ctx, Object.assign({
     pythonExecutable: process.execPath,
     bridgePath: fixture,
     requestTimeoutMs: 500,
     graceMs: 100,
-    ...overrides,
-  })
+  }, overrides))
   return { ctx, memory }
 }
 

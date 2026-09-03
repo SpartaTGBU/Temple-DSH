@@ -14,9 +14,9 @@ export const name = 'api-mempalace-dashboard-invariant'
 export const inject = ['invariants']
 
 /**
- * No runtime invariant: the package is an opt-in read-only adapter with no
- * retained mutable state; normalization and unavailable states are covered by
- * projection tests against real SQLite fixtures.
+ * No runtime invariant: the package's only mutable state is the private set of
+ * bounded one-shot workers, which has no authoritative event/data relation;
+ * lifecycle tests prove cancellation, timeout, capacity, and disposal.
  */
 const install: InvariantInstaller = () => {}
 

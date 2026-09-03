@@ -29,6 +29,9 @@ const MAX_LIMIT = 100
 const MAX_GROUPS = 1000
 const MAX_CONFIG_BYTES = 64 * 1024
 const MAX_TUNNELS_BYTES = 1024 * 1024
+const MAX_FILTER_CHARS = 256
+const MAX_FIELD_CHARS = 1000
+const MAX_TUNNELS = 1000
 
 /** Filesystem and environment dependencies for deterministic projection tests. */
 export interface MemPalaceProjectionOptions {
@@ -70,9 +73,22 @@ interface GroupRow {
 interface SqliteDriver {
   readonly grouped: string
   readonly drawers: string
+  readonly summary: string
 }
 
 const CHROMA_DRIVER: SqliteDriver = {
+  summary: `
+    SELECT COUNT(*) AS drawerCount,
+      COUNT(DISTINCT COALESCE(wm.string_value, CAST(wm.int_value AS TEXT), CAST(wm.float_value AS TEXT), '')) AS wingCount,
+      COUNT(DISTINCT COALESCE(wm.string_value, CAST(wm.int_value AS TEXT), CAST(wm.float_value AS TEXT), '') || char(31) ||
+        COALESCE(rm.string_value, CAST(rm.int_value AS TEXT), CAST(rm.float_value AS TEXT), '')) AS roomCount
+    FROM embeddings e
+    JOIN segments s ON e.segment_id = s.id AND s.scope = 'METADATA'
+    JOIN collections c ON s.collection = c.id
+    LEFT JOIN embedding_metadata wm ON wm.id = e.id AND wm.key = 'wing'
+    LEFT JOIN embedding_metadata rm ON rm.id = e.id AND rm.key = 'room'
+    WHERE c.name = ?
+  `,
   grouped: `
     SELECT
       COALESCE(wm.string_value, CAST(wm.int_value AS TEXT), CAST(wm.float_value AS TEXT), '') AS wing,
@@ -120,6 +136,15 @@ const CHROMA_DRIVER: SqliteDriver = {
 }
 
 const SQLITE_EXACT_DRIVER: SqliteDriver = {
+  summary: `
+    SELECT COUNT(*) AS drawerCount,
+      COUNT(DISTINCT COALESCE(wing, json_extract(metadata_json, '$.wing'), '')) AS wingCount,
+      COUNT(DISTINCT COALESCE(wing, json_extract(metadata_json, '$.wing'), '') || char(31) ||
+        COALESCE(room, json_extract(metadata_json, '$.room'), '')) AS roomCount
+    FROM documents d
+    JOIN collections c ON d.collection_id = c.id
+    WHERE c.name = ?
+  `,
   grouped: `
     SELECT
       COALESCE(wing, json_extract(metadata_json, '$.wing'), '') AS wing,
@@ -193,7 +218,7 @@ export function buildMemPalaceDashboard(
  */
 export function unavailableMemPalaceDashboard(
   request: MemPalaceDashboardRequest,
-  reason: 'memory-provider-not-found' | 'memory-provider-unsupported' | 'memory-provider-unavailable',
+  reason: 'memory-provider-not-found' | 'memory-provider-unsupported' | 'memory-provider-unavailable' | 'memory-projection-unavailable',
   message: string,
 ): MemPalaceDashboardSnapshot {
   const section = unavailable(reason, message)
@@ -241,7 +266,7 @@ function clampLimit(value: number | undefined, fallback: number): number {
 
 function normalizedString(value: string | undefined): string | undefined {
   const trimmed = value?.trim()
-  return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed
+  return trimmed === undefined || trimmed.length === 0 ? undefined : trimmed.slice(0, MAX_FILTER_CHARS)
 }
 
 function resolveConfig(options: MemPalaceProjectionOptions): ResolvedConfig {
@@ -310,21 +335,23 @@ function readStructure(
   filters: NormalizedRequest,
 ): MemPalaceSection<MemPalaceStructureView> {
   if (!existsSync(location.palacePath)) {
-    return unavailable('palace-not-found', `MemPalace palace path does not exist: ${location.palacePath}`)
+    return unavailable('palace-not-found', 'The configured MemPalace palace path does not exist.')
   }
   const dbInfo = drawerDatabase(location)
   if (dbInfo === undefined) {
     return unavailable('drawer-index-not-found', 'No readable MemPalace drawer index was found for the configured backend.')
   }
   if (dbInfo === null) {
-    return unavailable('unsupported-backend', `Dashboard projection supports chroma and sqlite_exact, not ${location.backend}.`)
+    return unavailable('unsupported-backend', 'Dashboard projection supports only the local chroma and sqlite_exact backends.')
   }
   try {
     const db = new DatabaseSync(dbInfo.path, { readOnly: true })
     try {
       db.exec('PRAGMA query_only = ON')
       db.exec('PRAGMA busy_timeout = 2000')
+      const summary = summaryView(db.prepare(dbInfo.driver.summary).get(location.collectionName))
       const rooms = rowsOf<GroupRow>(db.prepare(dbInfo.driver.grouped).all(location.collectionName, MAX_GROUPS))
+        .map(groupView)
         .filter(row => row.wing.length > 0 && row.room.length > 0)
         .sort((a, b) => b.drawerCount - a.drawerCount || a.wing.localeCompare(b.wing) || a.room.localeCompare(b.room))
       const drawers = rowsOf<DrawerSqlRow>(db.prepare(dbInfo.driver.drawers).all(
@@ -342,6 +369,7 @@ function readStructure(
       return {
         available: true,
         value: {
+          ...summary,
           wings: wingViews(rooms),
           rooms,
           drawers,
@@ -351,8 +379,8 @@ function readStructure(
     } finally {
       db.close()
     }
-  } catch (error) {
-    return unavailable('sqlite-read-failed', `MemPalace drawer index could not be read: ${errorMessage(error)}`)
+  } catch {
+    return unavailable('sqlite-read-failed', 'MemPalace drawer index could not be read.')
   }
 }
 
@@ -387,15 +415,39 @@ interface DrawerSqlRow {
   readonly document: string
 }
 
+function summaryView(value: unknown): Pick<MemPalaceStructureView, 'drawerCount' | 'wingCount' | 'roomCount'> {
+  const row = isRecord(value) ? value : {}
+  return {
+    drawerCount: safeCount(row.drawerCount),
+    wingCount: safeCount(row.wingCount),
+    roomCount: safeCount(row.roomCount),
+  }
+}
+
+function safeCount(value: unknown): number {
+  const count = Number(value)
+  return Number.isSafeInteger(count) && count >= 0 ? count : 0
+}
+
 function drawerView(row: DrawerSqlRow): MemPalaceDrawerView {
   return {
-    id: String(row.id),
-    wing: row.wing,
-    room: row.room,
-    hall: row.hall,
-    ...(row.sourceFile.length === 0 ? {} : { sourceFile: row.sourceFile }),
-    ...(row.date.length === 0 ? {} : { date: row.date }),
-    preview: row.document.slice(0, 500),
+    id: boundedText(row.id),
+    wing: boundedText(row.wing),
+    room: boundedText(row.room),
+    hall: boundedText(row.hall),
+    ...(boundedText(row.sourceFile).length === 0 ? {} : { sourceFile: boundedText(row.sourceFile) }),
+    ...(boundedText(row.date).length === 0 ? {} : { date: boundedText(row.date) }),
+    preview: boundedText(row.document, 500),
+  }
+}
+
+function groupView(row: GroupRow): GroupRow {
+  return {
+    wing: boundedText(row.wing),
+    room: boundedText(row.room),
+    hall: boundedText(row.hall),
+    drawerCount: safeCount(row.drawerCount),
+    ...(boundedText(row.latestDate).length === 0 ? {} : { latestDate: boundedText(row.latestDate) }),
   }
 }
 
@@ -426,8 +478,9 @@ function readTunnels(
   if (explicitRows === undefined) {
     return unavailable('sidecar-read-failed', 'MemPalace tunnels.json is invalid or exceeds the inspection size limit.')
   }
-  const explicit = explicitRows.map(explicitTunnel).filter(tunnel => tunnel !== undefined)
-  return { available: true, value: [...passive, ...explicit] }
+  const explicit = explicitRows.slice(0, MAX_TUNNELS - passive.length)
+    .map(explicitTunnel).filter(tunnel => tunnel !== undefined)
+  return { available: true, value: [...passive, ...explicit].slice(0, MAX_TUNNELS) }
 }
 
 function passiveTunnels(rooms: readonly MemPalaceRoomView[]): MemPalaceTunnelView[] {
@@ -441,6 +494,7 @@ function passiveTunnels(rooms: readonly MemPalaceRoomView[]): MemPalaceTunnelVie
     if (wings.length < 2) continue
     for (let i = 0; i < wings.length; i += 1) {
       for (let j = i + 1; j < wings.length; j += 1) {
+        if (tunnels.length >= MAX_TUNNELS) return tunnels
         tunnels.push({
           id: `passive:${wings[i]}:${wings[j]}:${roomName}`,
           kind: 'passive',
@@ -481,14 +535,14 @@ function explicitTunnel(value: unknown): MemPalaceTunnelView | undefined {
   const label = stringValue(value.label)
   const updatedAt = stringValue(value.updated_at) ?? stringValue(value.created_at)
   return {
-    id: stringValue(value.id) ?? `${sourceWing}:${sourceRoom}:${targetWing}:${targetRoom}`,
+    id: boundedText(stringValue(value.id) ?? `${sourceWing}:${sourceRoom}:${targetWing}:${targetRoom}`),
     kind,
-    sourceWing,
-    sourceRoom,
-    targetWing,
-    targetRoom,
-    ...(label === undefined ? {} : { label }),
-    ...(updatedAt === undefined ? {} : { updatedAt }),
+    sourceWing: boundedText(sourceWing),
+    sourceRoom: boundedText(sourceRoom),
+    targetWing: boundedText(targetWing),
+    targetRoom: boundedText(targetRoom),
+    ...(label === undefined ? {} : { label: boundedText(label) }),
+    ...(updatedAt === undefined ? {} : { updatedAt: boundedText(updatedAt) }),
   }
 }
 
@@ -515,7 +569,7 @@ function readKnowledgeGraph(
       `).get() as { entities: number; facts: number; currentFacts: number }
       const relationshipTypes = rowsOf<{ predicate: string }>(db.prepare(
         'SELECT DISTINCT predicate FROM triples ORDER BY predicate LIMIT 100',
-      ).all()).map(row => row.predicate)
+      ).all()).map(row => boundedText(row.predicate))
       const timeline = rowsOf<KgSqlRow>(db.prepare(`
         SELECT t.id, s.name AS subject, t.predicate, o.name AS object,
           t.valid_from AS validFrom, t.valid_to AS validTo, t.confidence,
@@ -541,8 +595,8 @@ function readKnowledgeGraph(
     } finally {
       db.close()
     }
-  } catch (error) {
-    return unavailable('sqlite-read-failed', `MemPalace knowledge graph could not be read: ${errorMessage(error)}`)
+  } catch {
+    return unavailable('sqlite-read-failed', 'MemPalace knowledge graph could not be read.')
   }
 }
 
@@ -561,17 +615,17 @@ interface KgSqlRow {
 
 function kgFactView(row: KgSqlRow): MemPalaceKnowledgeFactView {
   return {
-    id: row.id,
-    subject: row.subject,
-    predicate: row.predicate,
-    object: row.object,
+    id: boundedText(row.id),
+    subject: boundedText(row.subject),
+    predicate: boundedText(row.predicate),
+    object: boundedText(row.object),
     current: row.validTo === null,
-    ...(row.validFrom === null ? {} : { validFrom: row.validFrom }),
-    ...(row.validTo === null ? {} : { validTo: row.validTo }),
+    ...(row.validFrom === null ? {} : { validFrom: boundedText(row.validFrom) }),
+    ...(row.validTo === null ? {} : { validTo: boundedText(row.validTo) }),
     ...(row.confidence === null ? {} : { confidence: row.confidence }),
-    ...(row.sourceFile === null ? {} : { sourceFile: row.sourceFile }),
-    ...(row.sourceDrawerId === null ? {} : { sourceDrawerId: row.sourceDrawerId }),
-    ...(row.extractedAt === null ? {} : { extractedAt: row.extractedAt }),
+    ...(row.sourceFile === null ? {} : { sourceFile: boundedText(row.sourceFile) }),
+    ...(row.sourceDrawerId === null ? {} : { sourceDrawerId: boundedText(row.sourceDrawerId) }),
+    ...(row.extractedAt === null ? {} : { extractedAt: boundedText(row.extractedAt) }),
   }
 }
 
@@ -581,9 +635,9 @@ function projectHealth(
 ): MemPalaceSection<MemPalaceHealthView> {
   if (!structure.available) return structure
   const value: MemPalaceHealthView = {
-    drawerCount: structure.value.wings.reduce((sum, wing) => sum + wing.drawerCount, 0),
-    wingCount: structure.value.wings.length,
-    roomCount: structure.value.rooms.length,
+    drawerCount: structure.value.drawerCount,
+    wingCount: structure.value.wingCount,
+    roomCount: structure.value.roomCount,
     currentFactCount: knowledgeGraph.available ? knowledgeGraph.value.currentFacts : null,
     expiredFactCount: knowledgeGraph.available ? knowledgeGraph.value.expiredFacts : null,
     unavailableSignals: [
@@ -620,6 +674,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function boundedText(value: unknown, max = MAX_FIELD_CHARS): string {
+  if (typeof value === 'string') return value.slice(0, max)
+  if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
+    return String(value).slice(0, max)
+  }
+  return ''
 }

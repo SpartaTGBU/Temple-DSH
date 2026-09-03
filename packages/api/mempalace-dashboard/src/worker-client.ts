@@ -10,6 +10,11 @@ interface WorkerResponse {
   readonly error?: string
 }
 
+function isWorkerResponse(value: unknown): value is WorkerResponse {
+  return typeof value === 'object' && value !== null && 'ok' in value
+    && typeof value.ok === 'boolean'
+}
+
 interface ActiveProjection {
   abort(error: Error): Promise<void>
 }
@@ -19,31 +24,38 @@ export class ProjectionWorkers {
   private readonly active = new Set<ActiveProjection>()
   private disposed = false
 
-  constructor(private readonly workerUrl = new URL('./projection-worker.js', import.meta.url)) {}
+  constructor(
+    private readonly workerUrl = new URL('./projection-worker.js', import.meta.url),
+    private readonly maxConcurrent = 4,
+  ) {}
 
   /**
    * Run one blocking projection outside the Host event loop.
    * @param request - normalized by the worker projection.
    * @param options - provider-owned source and bounded defaults.
    * @param timeoutMs - hard worker lifetime limit.
+   * @param signal - request cancellation that terminates the worker.
    * @returns the projected snapshot after the worker has terminated.
    */
   async run(
     request: MemPalaceDashboardRequest,
     options: MemPalaceProjectionOptions,
     timeoutMs: number,
+    signal?: AbortSignal,
   ): Promise<MemPalaceDashboardSnapshot> {
     if (this.disposed) throw new Error('MemPalace projection worker owner is disposed')
+    signal?.throwIfAborted()
+    if (this.active.size >= this.maxConcurrent) throw new Error('MemPalace projection capacity is busy')
     const worker = new Worker(this.workerUrl, {
       workerData: { request, options },
     })
     return await new Promise<MemPalaceDashboardSnapshot>((resolve, reject) => {
       let settled = false
-      let timer: ReturnType<typeof setTimeout>
       const finish = async (settle: () => void): Promise<void> => {
         if (settled) return
         settled = true
         clearTimeout(timer)
+        signal?.removeEventListener('abort', onAbort)
         worker.removeAllListeners()
         try {
           await worker.terminate()
@@ -53,21 +65,29 @@ export class ProjectionWorkers {
         }
       }
       const operation: ActiveProjection = {
-        abort: async error => { await finish(() => { reject(error) }) },
+        abort: async (error) => { await finish(() => { reject(error) }) },
       }
       this.active.add(operation)
-      timer = setTimeout(() => {
+      const onAbort = (): void => {
+        void operation.abort(new Error('MemPalace projection cancelled'))
+      }
+      signal?.addEventListener('abort', onAbort, { once: true })
+      const timer = setTimeout(() => {
         void operation.abort(new Error('MemPalace projection timed out'))
       }, timeoutMs)
       worker.once('message', (message: unknown) => {
-        const response = message as WorkerResponse
         void finish(() => {
-          if (response?.ok === true && response.value !== undefined) resolve(response.value)
-          else reject(new Error(response?.error ?? 'MemPalace projection worker failed'))
+          if (!isWorkerResponse(message)) {
+            reject(new Error('MemPalace projection worker emitted an invalid response'))
+          } else if (message.ok && message.value !== undefined) {
+            resolve(message.value)
+          } else {
+            reject(new Error(message.error ?? 'MemPalace projection worker failed'))
+          }
         })
       })
-      worker.once('error', error => { void finish(() => { reject(error) }) })
-      worker.once('exit', code => {
+      worker.once('error', (error) => { void finish(() => { reject(error) }) })
+      worker.once('exit', (code) => {
         void finish(() => {
           reject(new Error(`MemPalace projection worker exited before responding (${String(code)})`))
         })
@@ -79,7 +99,7 @@ export class ProjectionWorkers {
   async dispose(): Promise<void> {
     this.disposed = true
     const operations = [...this.active]
-    await Promise.all(operations.map(async operation => {
+    await Promise.all(operations.map(async (operation) => {
       await operation.abort(new Error('MemPalace projection worker owner is disposed'))
     }))
   }

@@ -2,17 +2,19 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import Schema from '@deepseek-ai/schemastery'
-import type { ConnectionRpcResult, HostConnectionHandle } from '@deepseek-ai/dsh-client-connection'
-import type { MemoryRuntime } from '@deepseek-ai/dsh-memory'
+import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection'
 import {
   unavailableMemPalaceDashboard,
   type MemPalaceProjectionOptions,
 } from './projection.ts'
-import { MEMPALACE_DASHBOARD_ENDPOINT, type MemPalaceDashboardRequest, type MemPalaceDashboardSnapshot } from './types.ts'
+import type { MemPalaceDashboardRequest, MemPalaceDashboardSnapshot } from './types.ts'
 import { ProjectionWorkers } from './worker-client.ts'
 
 export type * from './types.ts'
 export { buildMemPalaceDashboard, normalizeRequest, unavailableMemPalaceDashboard } from './projection.ts'
+
+/** Logical endpoint inside the shared `/api` RPC channel. */
+export const MEMPALACE_DASHBOARD_ENDPOINT = 'mempalaceDashboard/inspect'
 
 /** Loader id for the Host plugin. */
 export const name = 'mempalace-dashboard'
@@ -29,6 +31,8 @@ export interface Config {
   readonly sourceTimeoutMs?: number
   /** Hard lifetime for one storage projection worker in milliseconds. @default 5000 */
   readonly projectionTimeoutMs?: number
+  /** Maximum simultaneous storage projection workers. @default 4 */
+  readonly maxConcurrentProjections?: number
 }
 
 /** Validate MemPalace dashboard configuration. */
@@ -37,6 +41,7 @@ export const Config: Schema<Config> = Schema.object({
   defaultLimit: Schema.number().step(1).min(1).max(100).default(25),
   sourceTimeoutMs: Schema.number().step(1).min(1).max(30_000).default(5000),
   projectionTimeoutMs: Schema.number().step(1).min(1).max(30_000).default(5000),
+  maxConcurrentProjections: Schema.number().step(1).min(1).max(32).default(4),
 })
 
 /**
@@ -49,19 +54,20 @@ export function apply(ctx: Context, config: Config = {}): void {
   const options: MemPalaceProjectionOptions = {
     ...(config.defaultLimit === undefined ? {} : { defaultLimit: config.defaultLimit }),
   }
-  const connection = Reflect.get(ctx, 'connection') as HostConnectionHandle
-  const workers = new ProjectionWorkers()
+  const connection = ctx.connection
+  const workers = new ProjectionWorkers(undefined, config.maxConcurrentProjections ?? 4)
   ctx.effect(() => async () => { await workers.dispose() }, 'mempalace-dashboard: projection workers')
   ctx.effect(() => connection.rpc.intercept(
     '/api',
     (endpoint: string) => endpoint === MEMPALACE_DASHBOARD_ENDPOINT,
-    (_endpoint: string, payload: unknown) => inspect(
+    (_endpoint: string, payload: unknown, signal: AbortSignal) => inspect(
       ctx,
       workers,
       payload,
       options,
       config.sourceTimeoutMs ?? 5000,
       config.projectionTimeoutMs ?? 5000,
+      signal,
     ),
   ), 'mempalace-dashboard: rpc endpoint')
 }
@@ -73,10 +79,11 @@ async function inspect(
   options: MemPalaceProjectionOptions,
   sourceTimeoutMs: number,
   projectionTimeoutMs: number,
+  signal: AbortSignal,
 ): Promise<ConnectionRpcResult<MemPalaceDashboardSnapshot>> {
   const request = requestPayload(payload)
   try {
-    const memory = ctx.get('memory') as MemoryRuntime | undefined
+    const memory = ctx.get('memory')
     if (memory === undefined) {
       return {
         ok: true,
@@ -94,11 +101,14 @@ async function inspect(
         value: unavailableMemPalaceDashboard(
           request,
           'memory-provider-unsupported',
-          `The configured memory backend is ${status.backend}, not mempalace.`,
+          'The configured memory backend is not mempalace.',
         ),
       }
     }
-    const source = await memory.inspectionSource(AbortSignal.timeout(sourceTimeoutMs))
+    const source = await memory.inspectionSource(AbortSignal.any([
+      signal,
+      AbortSignal.timeout(sourceTimeoutMs),
+    ]))
     if (source?.kind !== 'mempalace') {
       return {
         ok: true,
@@ -109,9 +119,20 @@ async function inspect(
         ),
       }
     }
-    return {
-      ok: true,
-      value: await workers.run(request, { ...options, source, providerStatus: status }, projectionTimeoutMs),
+    try {
+      return {
+        ok: true,
+        value: await workers.run(request, { ...options, source, providerStatus: status }, projectionTimeoutMs, signal),
+      }
+    } catch {
+      return {
+        ok: true,
+        value: unavailableMemPalaceDashboard(
+          request,
+          'memory-projection-unavailable',
+          'The MemPalace storage projection could not complete.',
+        ),
+      }
     }
   } catch (error) {
     return {

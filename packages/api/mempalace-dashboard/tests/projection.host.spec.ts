@@ -75,6 +75,7 @@ describe('MemPalace dashboard projection', () => {
       limit: 100,
     })
     expect(normalizeRequest({ limit: 0 })).toEqual({ limit: 1 })
+    expect(normalizeRequest({ query: 'x'.repeat(300) }).query).toHaveLength(256)
   })
 
   it('projects sqlite_exact drawers, KG facts, passive tunnels, explicit tunnels, and unavailable traces', () => {
@@ -106,6 +107,7 @@ describe('MemPalace dashboard projection', () => {
     })
     expect(snapshot.structure.available).toBe(true)
     if (!snapshot.structure.available) throw new Error(snapshot.structure.message)
+    expect(snapshot.structure.value).toMatchObject({ drawerCount: 3, wingCount: 2, roomCount: 3 })
     expect(snapshot.structure.value.wings).toEqual([
       { wing: 'wing_alpha', drawerCount: 2, roomCount: 2 },
       { wing: 'wing_beta', drawerCount: 1, roomCount: 1 },
@@ -139,6 +141,47 @@ describe('MemPalace dashboard projection', () => {
     })
     expect(unsupported.structure).toMatchObject({ available: false, reason: 'unsupported-backend' })
     expect(unsupported.knowledgeGraph).toMatchObject({ available: false, reason: 'knowledge-graph-not-found' })
+  })
+
+  it('bounds quadratic passive tunnels and suppresses malformed SQLite diagnostics', () => {
+    const home = root()
+    const palacePath = join(home, 'palace')
+    mkdirSync(palacePath, { recursive: true })
+    const db = new DatabaseSync(join(palacePath, 'sqlite_exact.sqlite3'))
+    db.exec(`
+      CREATE TABLE collections (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
+      CREATE TABLE documents (
+        id TEXT PRIMARY KEY, collection_id INTEGER NOT NULL, document TEXT NOT NULL,
+        metadata_json TEXT NOT NULL, wing TEXT, room TEXT, hall TEXT
+      );
+      INSERT INTO collections (id, name) VALUES (1, 'mempalace_drawers');
+    `)
+    const insert = db.prepare('INSERT INTO documents VALUES (?, 1, ?, ?, ?, ?, ?)')
+    for (let index = 0; index < 50; index += 1) {
+      insert.run(`drawer-${String(index)}`, 'bounded', '{}', `wing-${String(index)}`, 'shared', 'hall')
+    }
+    db.close()
+    const bounded = buildMemPalaceDashboard({}, { home, palacePath, env: { MEMPALACE_BACKEND: 'sqlite_exact' } })
+    expect(bounded.structure.available).toBe(true)
+    if (!bounded.structure.available) throw new Error(bounded.structure.message)
+    expect(bounded.structure.value).toMatchObject({ drawerCount: 50, wingCount: 50, roomCount: 50 })
+    expect(bounded.structure.value.tunnels).toMatchObject({ available: true })
+    if (!bounded.structure.value.tunnels.available) throw new Error(bounded.structure.value.tunnels.message)
+    expect(bounded.structure.value.tunnels.value).toHaveLength(1000)
+
+    const malformedPath = join(home, 'malformed')
+    mkdirSync(malformedPath)
+    writeFileSync(join(malformedPath, 'sqlite_exact.sqlite3'), 'not sqlite')
+    const malformed = buildMemPalaceDashboard({}, {
+      home,
+      palacePath: malformedPath,
+      env: { MEMPALACE_BACKEND: 'sqlite_exact' },
+    })
+    expect(malformed.structure).toEqual({
+      available: false,
+      reason: 'sqlite-read-failed',
+      message: 'MemPalace drawer index could not be read.',
+    })
   })
 
   it('uses provider-resolved storage coordinates instead of divergent environment and file values', () => {

@@ -45,7 +45,7 @@ abstract status(): MemoryStatus
  * @param signal - optional cancellation for provider-side resolution.
  * @returns a read-only inspection source, or `undefined` when unsupported.
  */
-async inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>
+inspectionSource(signal?: AbortSignal): Promise<MemoryInspectionSource | undefined>
 
 /**
  * Recall bounded background information for one turn.

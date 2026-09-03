@@ -26,14 +26,14 @@ English | [中文](README.zh.md)
 
 Mount the package in the Web host plane and enable the matching client package. The shipped Web profile enables the native provider, automatic consumer, Host API, and browser row together only when `MEMPALACE_ENABLED=1`; unset and all other values leave all four rows disabled.
 
-The API registers one authenticated shared-channel endpoint, `mempalaceDashboard/inspect`, below `/api`. It accepts optional `wing`, `room`, `query`, and `limit` fields. Empty strings are ignored, `limit` is clamped to 1..100, aggregate rows are capped, and sidecar bytes are bounded. `sourceTimeoutMs` bounds provider resolution and `projectionTimeoutMs` bounds each one-shot inspection worker.
+The API registers one authenticated shared-channel endpoint, `mempalaceDashboard/inspect`, below `/api`. It accepts optional `wing`, `room`, `query`, and `limit` fields. Empty strings are ignored, filter strings are capped at 256 characters, `limit` is clamped to 1..100, aggregate rows and projected tunnels are capped, and sidecar bytes are bounded. `sourceTimeoutMs` bounds provider resolution, `projectionTimeoutMs` bounds each one-shot inspection worker, and `maxConcurrentProjections` caps simultaneous workers at four by default.
 
 -----
 
 <a id="lifecycle-and-security-boundaries"></a>
 ## Lifecycle and security boundaries
 
-The plugin performs no writes and opens SQLite databases with `readOnly` plus `PRAGMA query_only`. Provider configuration resolution uses the native provider's private managed bridge but does not open or create a collection. Blocking SQLite and sidecar reads run in a worker thread; endpoint disposal terminates in-flight workers. The endpoint is available only after the composed Connection service applies its normal Host/Origin checks and browser authentication.
+The plugin performs no writes and opens SQLite databases with `readOnly` plus `PRAGMA query_only`. Provider configuration resolution uses the native provider's private managed bridge but does not open or create a collection. Blocking SQLite and sidecar reads run in a worker thread; request cancellation, timeout, and endpoint disposal terminate in-flight workers. Storage failures return fixed diagnostics rather than raw SQLite errors. The endpoint is available only after the composed Connection service applies its normal Host/Origin checks and browser authentication.
 
 -----
 
